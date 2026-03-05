@@ -16,13 +16,21 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
 // CORS
+// CORS (Lambda/API Gateway friendly)
+var corsRaw = builder.Configuration["CORS_ALLOWED_ORIGINS"] ?? "";
+var allowedOrigins = corsRaw
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:3000")
-              .AllowAnyHeader()
-              .AllowAnyMethod();
+        if (allowedOrigins.Length == 0)
+            allowedOrigins = new[] { "http://localhost:3000" };
+
+        policy.WithOrigins(allowedOrigins)
+              .WithHeaders("Content-Type", "Authorization") 
+              .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS");
     });
 });
 
