@@ -41,6 +41,12 @@ next-env.d.ts
 *.suo
 *.cache
 
+backend/**/bin/
+backend/**/obj/
+backend/**/publish/
+backend/**/*.zip
+
+
 # =========================
 # Optional: Coverage / Test
 # =========================

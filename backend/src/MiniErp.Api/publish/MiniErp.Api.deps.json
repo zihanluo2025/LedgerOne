@@ -1,12 +1,11 @@
 {
   "runtimeTarget": {
-    "name": ".NETCoreApp,Version=v8.0/linux-x64",
+    "name": ".NETCoreApp,Version=v8.0",
     "signature": ""
   },
   "compilationOptions": {},
   "targets": {
-    ".NETCoreApp,Version=v8.0": {},
-    ".NETCoreApp,Version=v8.0/linux-x64": {
+    ".NETCoreApp,Version=v8.0": {
       "MiniErp.Api/1.0.0": {
         "dependencies": {
           "AWSSDK.Extensions.NETCore.Setup": "4.0.3.22",
