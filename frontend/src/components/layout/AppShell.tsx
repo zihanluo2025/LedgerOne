@@ -5,11 +5,9 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-
 import { NAV } from "@/lib/nav";
 import type { NavItem } from "@/lib/nav";
 import { isAdmin as checkIsAdmin } from "@/lib/authz";
-
 
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -26,30 +24,26 @@ import NavGroup from "@/components/layout/NavGroup";
 import { fetchAuthSession } from "aws-amplify/auth";
 import { logout } from "@/lib/auth";
 
-
-
 type UserInfo = {
     email?: string;
     name?: string;
     preferred_username?: string;
 };
 
-
 function filterNav(items: NavItem[], isAdmin: boolean): NavItem[] {
     return items
         .filter((item) => (item.requiredRole === "admin" ? isAdmin : true))
         .map((item) => {
             if ("children" in item) {
-                const children = item.children.filter((c) => (c.requiredRole === "admin" ? isAdmin : true));
+                const children = item.children.filter((c) =>
+                    c.requiredRole === "admin" ? isAdmin : true
+                );
                 return { ...item, children };
             }
             return item;
         })
         .filter((item) => !("children" in item) || item.children.length > 0);
 }
-
-
-
 
 function getInitials(email?: string, name?: string) {
     const base = (name || email || "U").trim();
@@ -59,22 +53,38 @@ function getInitials(email?: string, name?: string) {
     return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
-function getHeaderTitle(pathname: string) {
-    if (!pathname || pathname === "/") return "home";
-    return pathname.replace("/", "");
+function formatSegment(segment: string) {
+    return segment
+        .replace(/[-_]/g, " ")
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function getBreadcrumbItems(pathname: string) {
+    if (!pathname || pathname === "/") {
+        return ["Home"];
+    }
+
+    const segments = pathname.split("/").filter(Boolean);
+    return ["Home", ...segments.map(formatSegment)];
+}
+
+function getPageTitle(pathname: string) {
+    if (!pathname || pathname === "/") return "Home";
+
+    const segments = pathname.split("/").filter(Boolean);
+    return formatSegment(segments[segments.length - 1]);
 }
 
 export default function AppShell({ children }: { children: ReactNode }) {
     const pathname = usePathname();
     const [user, setUser] = useState<UserInfo | null>(null);
-
     const [isAdmin, setIsAdmin] = useState(false);
+
     const nav = useMemo(() => filterNav(NAV, isAdmin), [isAdmin]);
 
     useEffect(() => {
         checkIsAdmin().then(setIsAdmin);
     }, []);
-
 
     useEffect(() => {
         let mounted = true;
@@ -82,7 +92,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
         (async () => {
             try {
                 const session = await fetchAuthSession();
-                const claims = session.tokens?.idToken?.payload as { email?: string; name?: string; preferred_username?: string } | undefined;
+                const claims = session.tokens?.idToken?.payload as
+                    | { email?: string; name?: string; preferred_username?: string }
+                    | undefined;
 
                 if (!mounted) return;
 
@@ -102,25 +114,25 @@ export default function AppShell({ children }: { children: ReactNode }) {
         };
     }, []);
 
-    // const displayName = useMemo(() => {
-    //     return user?.preferred_username || user?.name || user?.email || "User";
-    // }, [user]);
+    const breadcrumbItems = useMemo(
+        () => getBreadcrumbItems(pathname || "/"),
+        [pathname]
+    );
 
-    const headerTitle = useMemo(() => getHeaderTitle(pathname || "/"), [pathname]);
+
 
     return (
-        <div className="min-h-screen erp-shell">
-            <div className="grid grid-cols-[240px_1fr]">
+        <div className="h-screen overflow-hidden erp-shell">
+            <div className="grid h-full grid-cols-[240px_1fr]">
                 {/* Sidebar */}
-                <aside className="min-h-screen erp-sidebar">
-                    <div className="erp-brand">LOGER ONE</div>
+                <aside className="flex h-full flex-col erp-sidebar">
+                    <div className="erp-brand shrink-0">LOGER ONE</div>
 
-                    <nav className="erp-nav">
+                    <nav className="erp-nav min-h-0 flex-1 overflow-y-auto">
                         {nav.map((item) => {
                             if ("href" in item) {
                                 const active =
-                                    pathname === item.href ||
-                                    pathname.startsWith(item.href + "/");
+                                    pathname === item.href || pathname.startsWith(item.href + "/");
 
                                 const Icon = item.icon;
 
@@ -152,49 +164,87 @@ export default function AppShell({ children }: { children: ReactNode }) {
                     </nav>
                 </aside>
 
-                <main className="min-w-0">
-                    <header className="h-14 px-4 flex items-center justify-between erp-header">
-                        <div className="text-sm opacity-90">{headerTitle}</div>
+                <main className="flex h-full min-w-0 flex-col overflow-hidden">
+                    <header className="erp-header shrink-0 px-6 py-2">
+                        <div className="flex items-center justify-between">
+                            <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2 text-sm text-[var(--erp-text-muted)]">
+                                    {breadcrumbItems.map((item, index) => {
+                                        const isLast = index === breadcrumbItems.length - 1;
 
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="gap-2">
-                                    <Avatar className="h-7 w-7">
-                                        <AvatarFallback>{getInitials(user?.email, user?.name)}</AvatarFallback>
-                                    </Avatar>
-                                    {/* <span className="text-sm">{displayName}</span> */}
-                                </Button>
-                            </DropdownMenuTrigger>
-
-                            <DropdownMenuContent align="end" className="w-56">
-                                <DropdownMenuLabel>Account</DropdownMenuLabel>
-
-                                <div className="px-2 pb-2 text-xs text-muted-foreground break-all">
-                                    {user?.email || "—"}
+                                        return (
+                                            <div key={`${item}-${index}`} className="flex items-center gap-2">
+                                                {index > 0 && <span>/</span>}
+                                                <span
+                                                    className={
+                                                        isLast
+                                                            ? "text-[var(--erp-text-secondary)]"
+                                                            : "text-[var(--erp-text-muted)]"
+                                                    }
+                                                >
+                                                    {item}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
 
-                                <DmSep />
 
-                                <DropdownMenuItem asChild>
-                                    <Link href="/settings/profile">Profile</Link>
-                                </DropdownMenuItem>
+                            </div>
 
-                                <DmSep />
-
-                                <DropdownMenuItem
-                                    className="text-red-600 focus:text-red-600"
-                                    onClick={async () => {
-                                        await logout();
-                                    }}
+                            <div className="flex items-center gap-3">
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="relative h-10 w-10 rounded-full border border-[var(--erp-border)] bg-[var(--erp-surface)] text-[var(--erp-text-secondary)] hover:bg-[var(--erp-surface-muted)]"
                                 >
-                                    Logout
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                                    <span className="text-base">🔔</span>
+                                    <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" />
+                                </Button>
+
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" className="h-10 rounded-full px-2">
+                                            <Avatar className="h-8 w-8">
+                                                <AvatarFallback>
+                                                    {getInitials(user?.email, user?.name)}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                        </Button>
+                                    </DropdownMenuTrigger>
+
+                                    <DropdownMenuContent align="end" className="w-56">
+                                        <DropdownMenuLabel>Account</DropdownMenuLabel>
+
+                                        <div className="break-all px-2 pb-2 text-xs text-muted-foreground">
+                                            {user?.email || "—"}
+                                        </div>
+
+                                        <DmSep />
+
+                                        <DropdownMenuItem asChild>
+                                            <Link href="/settings/profile">Profile</Link>
+                                        </DropdownMenuItem>
+
+                                        <DmSep />
+
+                                        <DropdownMenuItem
+                                            className="text-red-600 focus:text-red-600"
+                                            onClick={async () => {
+                                                await logout();
+                                            }}
+                                        >
+                                            Logout
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                        </div>
                     </header>
 
-                    <div className="erp-content">
-                        <div className="p-2">{children}</div>
+                    <div className="erp-content min-h-0 flex-1 overflow-y-auto">
+                        <div className="p-4 md:p-6">{children}</div>
                     </div>
                 </main>
             </div>

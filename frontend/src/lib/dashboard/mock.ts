@@ -2,11 +2,16 @@
  * Dashboard mock data (hard-coded for now).
  * Replace with real API calls later.
  */
-
+export type KpiTrendType = "positive" | "neutral" | "warning";
 export type KpiItem = {
   label: string;
   value: number;
-  icon: string; // Use emoji for now; later swap to lucide icons.
+  icon: string;
+  trend: string;
+  trendType: KpiTrendType;
+  progress: number;
+  subText: string;
+  displayValue: string;
 };
 
 export type SalesPoint = {
@@ -23,14 +28,49 @@ export type NoticeItem = {
   title: string;
   content: string;
   tag: "NEW" | "ALERT" | "UPDATE";
-  time: string; // yyyy-mm-dd
+  time: string;
 };
-
 export const KPI_ITEMS: KpiItem[] = [
-  { label: "Stock Quantity", value: 891, icon: "📦" },
-  { label: "Stock Value", value: 40490, icon: "💰" },
-  { label: "Purchase Orders", value: 15, icon: "🧾" },
-  { label: "Sales Orders", value: 36, icon: "🏷️" },
+  {
+    label: "Stock Quantity",
+    value: 891,
+    icon: "📦",
+    trend: "+12.5%",
+    trendType: "positive",
+    progress: 75,
+    subText: "As of 2 min ago",
+    displayValue: "891",
+  },
+    {
+    label: "Stock Value",
+    value: 40490,
+    icon: "💰",
+    trend: "Optimal",
+    trendType: "neutral",
+    progress: 80,
+    subText: "Updated 2 min ago",
+    displayValue: "$40,490",
+  },
+    {
+    label: "Purchase Orders",
+    value: 15,
+    icon: "🧾",
+    trend: "3 Pending",
+    trendType: "warning",
+    progress: 60,
+    subText: "Active pipelines",
+    displayValue: "15",
+  },
+    {
+    label: "Sales Orders",
+    value: 36,
+    icon: "📈",
+    trend: "+8% MoM",
+    trendType: "positive",
+    progress: 68,
+    subText: "Active delivery pipelines",
+    displayValue: "36",
+  },
 ];
 
 export const SALES_TREND: SalesPoint[] = [
