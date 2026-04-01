@@ -8,7 +8,7 @@ export default function DashboardHeader() {
     return (
         <section className="space-y-2">
             <h2 className="text-3xl font-semibold tracking-tight text-[var(--erp-text)]">
-                Hello, {loading ? "..." : displayName}! Welcome to Loger One.
+                Hello, {loading ? "..." : displayName} ! Welcome to Loger One.
             </h2>
 
             <p className="text-base text-[var(--erp-text-secondary)]">
