@@ -1,18 +1,19 @@
 "use client";
 
-import { Card, CardContent } from "@/components/ui/card";
+import { useCurrentUser } from "@/lib/use-current-user";
 
-/**
- * Simple greeting banner on the dashboard.
- */
 export default function DashboardHeader() {
+    const { displayName, loading } = useCurrentUser();
+
     return (
-        // <Card className="shadow-sm">
-        //     <CardContent className="py-2">
-        <div className="text-sm text-muted-foreground">
-            Hello, Admin! Welcome to Loger Dashboard.
-        </div>
-        //     </CardContent>
-        // </Card>
+        <section className="space-y-2">
+            <h2 className="text-3xl font-semibold tracking-tight text-[var(--erp-text)]">
+                Hello, {loading ? "..." : displayName}! Welcome to Loger One.
+            </h2>
+
+            <p className="text-base text-[var(--erp-text-secondary)]">
+                Here&apos;s your architectural overview for today.
+            </p>
+        </section>
     );
 }

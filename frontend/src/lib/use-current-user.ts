@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { fetchAuthSession } from "aws-amplify/auth";
 
 export type CurrentUser = {
+  sub?: string;
   email?: string;
   name?: string;
   preferred_username?: string;
@@ -21,6 +22,7 @@ export function useCurrentUser() {
         const session = await fetchAuthSession();
         const claims = session.tokens?.idToken?.payload as
           | {
+              sub?: string;
               email?: string;
               name?: string;
               preferred_username?: string;
@@ -30,6 +32,7 @@ export function useCurrentUser() {
         if (!mounted) return;
 
         setUser({
+          sub: claims?.sub,
           email: claims?.email,
           name: claims?.name,
           preferred_username: claims?.preferred_username,
