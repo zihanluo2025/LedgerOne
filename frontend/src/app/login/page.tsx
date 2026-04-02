@@ -8,7 +8,7 @@ import { Mail, Lock, Fingerprint, ArrowRight } from "lucide-react";
 import { startHostedLogin, isSignedIn, loginWithPassword } from "@/lib/auth";
 
 import { Button } from "@/components/ui/button";
-import { toastError, toastSuccess } from "@/lib/tools/toast";
+import { toastError, toastSuccess, toastWarning } from "@/lib/tools/toast";
 
 
 
@@ -27,18 +27,24 @@ export default function LoginPage() {
 
     const handleLogin = async () => {
         if (!email || !password) {
-            toastError("Please enter email and password");
+            toastWarning("Please enter email and password");
             return;
         }
 
         try {
-            await loginWithPassword(email, password);
-            toastSuccess("Login successful");
+            const res = await loginWithPassword(email, password);
 
-            router.replace("/dashboard");
-        } catch (err) {
-            console.error(err);
-            toastError("Login failed");
+
+            if (res.isSignedIn) {
+                toastSuccess("Welcome back!");
+                router.push("/dashboard");
+            } else {
+                console.log("Next step:", res.nextStep);
+
+                toastWarning("Additional verification required");
+            }
+        } catch (err: unknown) {
+            toastError((err as Error)?.message || "Login failed");
         }
     };
 
