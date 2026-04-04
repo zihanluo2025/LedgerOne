@@ -171,7 +171,7 @@ export default function PendingPage() {
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                     <div>
                         <h1 className="text-3xl font-semibold tracking-tight text-[var(--erp-text)]">
-                            Approval Workflow
+                            Approval Workflow news
                         </h1>
                         <p className="text-base text-[var(--erp-text-secondary)]">
                             Review and action pending operational requests across the organization.
