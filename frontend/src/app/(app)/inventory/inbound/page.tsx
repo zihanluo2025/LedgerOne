@@ -1,14 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
     Plus,
     Filter,
-    Download,
-    Calendar,
-    CheckCircle2,
-    AlertTriangle,
-    PackageCheck,
+    Download
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -16,6 +12,7 @@ import DataTable from "@/components/common/data-table";
 import DataFilterBar from "@/components/common/data-filter-bar";
 import type { FilterField } from "@/components/common/data-filter-bar/types";
 import KpiCard from "@/components/common/kpi-card";
+import PageHeader from "@/components/common/PageHeader";
 
 type InboundStatus =
     | "Completed"
@@ -228,19 +225,22 @@ export default function InboundPage() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-3xl font-semibold">Inbound Management</h1>
-                    <p className="text-slate-500">
-                        Manage and track inventory incoming into your facilities.
-                    </p>
-                </div>
-
-                <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create Inbound
-                </Button>
-            </div>
+            <PageHeader
+                title="Inbound"
+                description=" Manage and track inventory incoming into your facilities."
+                actions={[
+                    {
+                        label: "Export",
+                        icon: <Download size={22} strokeWidth={2.2} />,
+                        onClick: () => console.log("Export clicked")
+                    },
+                    {
+                        label: "Create Inbound",
+                        icon: <Plus size={22} strokeWidth={2.2} />,
+                        onClick: () => console.log("Create Inbound clicked")
+                    },
+                ]}
+            />
 
             {/* KPI */}
             <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-5">
