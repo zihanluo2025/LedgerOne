@@ -10,6 +10,7 @@ import {
     UserCheck,
     ShieldCheck,
     Mail,
+    Upload,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import DataFilterBar from "@/components/common/data-filter-bar";
 import type { FilterField } from "@/components/common/data-filter-bar/types";
 import KpiCard from "@/components/common/kpi-card";
 import DataTable from "@/components/common/data-table";
+import PageHeader from "@/components/common/PageHeader";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -366,30 +368,27 @@ export default function UsersPage() {
 
     return (
         <div className="min-h-screen space-y-6 bg-[#F6F8FC]">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-semibold">Users</h1>
-                    <p className="text-slate-500">
-                        Manage user accounts, roles, status and access permissions.
-                    </p>
-                </div>
-
-                <div className="flex gap-3">
-                    <Button variant="outline" size="icon">
-                        <RefreshCw className="h-4 w-4" />
-                    </Button>
-
-                    <Button variant="outline">
-                        <Download className="mr-2 h-4 w-4" />
-                        Export CSV
-                    </Button>
-
-                    <Button>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add User
-                    </Button>
-                </div>
-            </div>
+            <PageHeader
+                title="Users"
+                description="Manage user accounts, roles, status and access permissions."
+                actions={[
+                    {
+                        label: "Import",
+                        icon: <Upload size={22} strokeWidth={2.2} />,
+                        onClick: () => console.log("Import clicked")
+                    },
+                    {
+                        label: "Export",
+                        icon: <Download size={22} strokeWidth={2.2} />,
+                        onClick: () => console.log("Export clicked")
+                    },
+                    {
+                        label: "Add User",
+                        icon: <Plus size={22} strokeWidth={2.2} />,
+                        onClick: () => console.log("Add User clicked")
+                    },
+                ]}
+            />
 
             <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
                 <KpiCard

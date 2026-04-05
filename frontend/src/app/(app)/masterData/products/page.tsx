@@ -17,6 +17,7 @@ import DataFilterBar from "@/components/common/data-filter-bar";
 import type { FilterField } from "@/components/common/data-filter-bar/types";
 import KpiCard from "@/components/common/kpi-card";
 import DataTable from "@/components/common/data-table";
+import PageHeader from "@/components/common/PageHeader";
 
 type ProductItem = {
     id: string;
@@ -339,39 +340,30 @@ export default function ProductsPage() {
     return (
         <div className="min-h-screen bg-[#F6F8FC]">
             <div className="mx-auto w-full max-w-[1440px] space-y-6">
-                <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                    <div>
-                        <h1 className="text-3xl font-semibold tracking-tight text-[var(--erp-text)]">
-                            Products
-                        </h1>
-                        <p className="max-w-[760px] text-base text-[var(--erp-text-secondary)]">
-                            Product catalog, pricing, and stock levels with architectural precision across your global inventory.
-                        </p>
-                    </div>
+                <PageHeader
+                    title="Products"
+                    description="Product catalog, pricing with architectural precision across your global inventory."
+                    actions={[
+                        {
+                            label: "Import",
+                            icon: <Upload size={22} strokeWidth={2.2} />,
+                            onClick: () => console.log("Import clicked")
+                        },
+                        {
+                            label: "Export",
+                            icon: <Download size={22} strokeWidth={2.2} />,
+                            onClick: () => console.log("Export clicked")
+                        },
+                        {
+                            label: "Add Product",
+                            icon: <Plus size={22} strokeWidth={2.2} />,
+                            onClick: () => console.log("Add Product clicked")
+                        },
+                    ]}
+                />
 
-                    <div className="flex flex-wrap items-center gap-3">
-                        <Button
-                            variant="outline"
-                            className="h-12 rounded-sm border-[#D7E4FF] bg-[#EAF1FF] px-5 text-[15px] font-semibold text-[#183B6B] hover:bg-[#DFE9FF]"
-                        >
-                            <Upload className="mr-2 h-4 w-4" />
-                            Import
-                        </Button>
 
-                        <Button
-                            variant="outline"
-                            className="h-12 rounded-sm border-[#D7E4FF] bg-[#EAF1FF] px-5 text-[15px] font-semibold text-[#183B6B] hover:bg-[#DFE9FF]"
-                        >
-                            <Download className="mr-2 h-4 w-4" />
-                            Export
-                        </Button>
 
-                        <Button className="h-12 rounded-sm bg-[#175CFF] px-6 text-[15px] font-semibold text-white shadow-md shadow-blue-300/40 hover:bg-[#0F4FE8]">
-                            <Plus className="mr-2 h-4 w-4" />
-                            Add Product
-                        </Button>
-                    </div>
-                </div>
 
                 <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
                     <KpiCard
@@ -469,6 +461,6 @@ export default function ProductsPage() {
                     }}
                 />
             </div>
-        </div>
+        </div >
     );
 }

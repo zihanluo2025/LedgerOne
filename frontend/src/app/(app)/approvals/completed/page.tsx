@@ -13,6 +13,7 @@ import type { FilterField } from "@/components/common/data-filter-bar/types";
 
 import KpiCard from "@/components/common/kpi-card";
 import DataTable from "@/components/common/data-table";
+import PageHeader from "@/components/common/PageHeader";
 
 
 type CompleteItem = {
@@ -251,27 +252,18 @@ export default function MyCompletePage() {
     return (
         <div className="min-h-screen bg-[#F6F8FC]">
             <div className="mx-auto w-full max-w-[1440px] space-y-6">
-                <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                    <div>
-                        <h1 className="text-3xl font-semibold tracking-tight text-[var(--erp-text)]">
-                            My Completed Approvals
-                        </h1>
-                        <p className="text-base text-[var(--erp-text-secondary)]">
-                            Review completed approval records and processing outcomes from
-                            your historical audit trail.
-                        </p>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-3">
-                        <Button
-                            variant="outline"
-                            className="h-11 rounded-xl border-[#D9E5FF] bg-[#EAF1FF] px-5 text-[#0A3B72] hover:bg-[#DFE9FF]"
-                        >
-                            <Download className="mr-2 h-4 w-4" />
-                            Export All
-                        </Button>
-                    </div>
-                </div>
+                <PageHeader
+                    title="My Completed Approvals"
+                    description="Review completed approval records and processing outcomes from
+                            your historical audit trail."
+                    actions={[
+                        {
+                            label: "Export All",
+                            icon: <Download size={22} strokeWidth={2.2} />,
+                            onClick: () => console.log("Export All clicked")
+                        },
+                    ]}
+                />
 
                 <div className="grid gap-5 lg:grid-cols-3">
                     <KpiCard
