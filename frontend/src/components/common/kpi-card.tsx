@@ -62,17 +62,25 @@ export default function KpiCard({
                         <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
                             {title}
                         </p>
+
                     </div>
 
                     <div className="flex items-center gap-2">
-                        {badge}
+
                         {rightIcon ? <div className="text-[#1D62F0]">{rightIcon}</div> : null}
                     </div>
                 </div>
 
                 <div className="flex items-end gap-2">
-                    <span className="text-4xl font-bold leading-none text-[#0A3B72]">
+                    {/* <div className="space-y-1">
+                        <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
+                            {title}
+                        </p>
+                    </div> */}
+
+                    <span className="text-xl font-bold leading-none text-[#0A3B72]">
                         {value}
+
                     </span>
                     {suffix ? (
                         <span className="pb-1 text-lg font-semibold text-slate-400">

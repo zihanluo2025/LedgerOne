@@ -338,3 +338,26 @@
 .erp-divider {
   border-color: var(--erp-border);
 }
+
+
+.thin-x-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.28) transparent;
+}
+
+.thin-x-scrollbar::-webkit-scrollbar {
+  height: 6px;
+}
+
+.thin-x-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.thin-x-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.28);
+  border-radius: 9999px;
+}
+
+.thin-x-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.4);
+}
