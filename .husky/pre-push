@@ -2,13 +2,31 @@
 
 echo "Detecting changed files for pre-push checks..."
 
-UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null)
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+UPSTREAM=$(git for-each-ref --format='%(upstream:short)' "refs/heads/$CURRENT_BRANCH")
+
+BASE_REF=""
 
 if [ -n "$UPSTREAM" ]; then
-  CHANGED_FILES=$(git diff --name-only "$UPSTREAM"...HEAD)
+  echo "Upstream branch found: $UPSTREAM"
+  BASE_REF="$UPSTREAM"
 else
-  echo "No upstream branch found, fallback to changed files in last commit."
-  CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null)
+  echo "No upstream branch found. First push detected."
+
+  if git show-ref --verify --quiet refs/remotes/origin/dev; then
+    BASE_REF="origin/dev"
+  elif git show-ref --verify --quiet refs/remotes/origin/main; then
+    BASE_REF="origin/main"
+  else
+    echo "No origin/dev or origin/main found. Fallback to checking both frontend and backend."
+    BASE_REF=""
+  fi
+fi
+
+if [ -n "$BASE_REF" ]; then
+  CHANGED_FILES=$(git diff --name-only "$BASE_REF"...HEAD)
+else
+  CHANGED_FILES=$(git ls-files)
 fi
 
 echo "Changed files:"
@@ -17,8 +35,8 @@ echo "$CHANGED_FILES"
 RUN_FRONTEND=false
 RUN_BACKEND=false
 
-echo "$CHANGED_FILES" | grep -q '^frontend/' && RUN_FRONTEND=true
-echo "$CHANGED_FILES" | grep -q '^backend/' && RUN_BACKEND=true
+echo "$CHANGED_FILES" | grep -Eq '^frontend/' && RUN_FRONTEND=true
+echo "$CHANGED_FILES" | grep -Eq '^backend/' && RUN_BACKEND=true
 
 if [ "$RUN_FRONTEND" = false ] && [ "$RUN_BACKEND" = false ]; then
   echo "No frontend/backend changes detected. Skipping checks."
