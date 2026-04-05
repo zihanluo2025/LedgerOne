@@ -6,7 +6,6 @@ import {
   signOut,
 } from "aws-amplify/auth";
 
-
 const userPoolId = process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID!;
 const userPoolClientId = process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID!;
 
@@ -57,10 +56,9 @@ function decodeJwtPayload(token: string): Record<string, unknown> | null {
   }
 }
 
-
 export async function isSignedIn(): Promise<boolean> {
   try {
-    const session = await fetchAuthSession({ forceRefresh: true });
+    const session = await fetchAuthSession();
     const idToken = session.tokens?.idToken?.toString();
     if (!idToken) return false;
 
@@ -70,7 +68,7 @@ export async function isSignedIn(): Promise<boolean> {
     if (typeof exp !== "number") return false;
 
     const nowSec = Math.floor(Date.now() / 1000);
-    return exp > nowSec + 30; // 30s buffer
+    return exp > nowSec + 30;
   } catch {
     return false;
   }
@@ -83,17 +81,19 @@ export async function startHostedLogin(options?: { redirectTo?: string }) {
     return;
   }
 
-
   await signInWithRedirect();
 }
 
 export async function loginWithPassword(email: string, password: string) {
-  const res = await signIn({
+  const signedIn = await isSignedIn();
+  if (signedIn) {
+    return { alreadySignedIn: true };
+  }
+
+  return await signIn({
     username: email,
     password,
   });
-
-  return res;
 }
 
 export async function logout() {
@@ -103,20 +103,12 @@ export async function logout() {
     console.warn("signOut error", e);
   }
 
-
-  localStorage.clear();
-  sessionStorage.clear();
-
-
-  document.cookie = "erp_auth=; path=/; max-age=0";
-
-  // Redirect to login page after logout
   window.location.href = "/login";
 }
 
 export async function getAccessToken(): Promise<string | null> {
   try {
-    const session = await fetchAuthSession({ forceRefresh: true });
+    const session = await fetchAuthSession();
     return session.tokens?.accessToken?.toString() ?? null;
   } catch {
     return null;
@@ -135,7 +127,7 @@ export async function waitForToken(maxMs = 4000): Promise<string | null> {
 
 export async function getIdToken(): Promise<string | null> {
   try {
-    const session = await fetchAuthSession({ forceRefresh: true });
+    const session = await fetchAuthSession();
     return session.tokens?.idToken?.toString() ?? null;
   } catch {
     return null;
