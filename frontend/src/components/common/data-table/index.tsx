@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -7,6 +8,11 @@ import { DataTableProps } from "./types";
 
 function cn(...classes: Array<string | false | undefined>) {
     return classes.filter(Boolean).join(" ");
+}
+
+function getColumnWidth(width?: number | string) {
+    if (typeof width === "number") return `${width}px`;
+    return width;
 }
 
 export default function DataTable<T>({
@@ -23,17 +29,99 @@ export default function DataTable<T>({
     rowClassName,
     footerLeft,
 }: DataTableProps<T>) {
+    const scrollRef = useRef<HTMLDivElement | null>(null);
+
+    const [hasHorizontalOverflow, setHasHorizontalOverflow] = useState(false);
+    const [showLeftShadow, setShowLeftShadow] = useState(false);
+    const [showRightShadow, setShowRightShadow] = useState(false);
+
+    const updateScrollState = useCallback(() => {
+        const el = scrollRef.current;
+        if (!el) return;
+
+        const hasOverflow = el.scrollWidth > el.clientWidth + 1;
+        const scrollLeft = el.scrollLeft;
+        const maxScrollLeft = el.scrollWidth - el.clientWidth;
+
+        setHasHorizontalOverflow(hasOverflow);
+        setShowLeftShadow(hasOverflow && scrollLeft > 2);
+        setShowRightShadow(hasOverflow && scrollLeft < maxScrollLeft - 2);
+    }, []);
+
+    useEffect(() => {
+        updateScrollState();
+
+        const el = scrollRef.current;
+        if (!el) return;
+
+        const handleScroll = () => updateScrollState();
+        el.addEventListener("scroll", handleScroll, { passive: true });
+
+        const resizeObserver = new ResizeObserver(() => {
+            updateScrollState();
+        });
+
+        resizeObserver.observe(el);
+
+        const table = el.querySelector("table");
+        if (table) {
+            resizeObserver.observe(table);
+        }
+
+        window.addEventListener("resize", updateScrollState);
+
+        return () => {
+            el.removeEventListener("scroll", handleScroll);
+            resizeObserver.disconnect();
+            window.removeEventListener("resize", updateScrollState);
+        };
+    }, [updateScrollState, data, columns]);
+
+    function getStickyClass(
+        fixed?: "left" | "right",
+        isHeader?: boolean
+    ) {
+        if (fixed === "left") {
+            return cn(
+                "sticky left-0 bg-white",
+                isHeader ? "z-30" : "z-20",
+                hasHorizontalOverflow &&
+                showLeftShadow &&
+                "shadow-[6px_0_12px_rgba(15,23,42,0.08)]"
+            );
+        }
+
+        if (fixed === "right") {
+            return cn(
+                "sticky right-0 bg-white",
+                isHeader ? "z-30" : "z-20",
+                hasHorizontalOverflow &&
+                showRightShadow &&
+                "shadow-[-6px_0_12px_rgba(15,23,42,0.08)]"
+            );
+        }
+
+        return "";
+    }
+
     return (
         <div className="overflow-hidden rounded-sm border border-slate-200/80 bg-white shadow-sm">
-            <div className="overflow-x-auto">
-                <table className="min-w-full">
+            <div
+                ref={scrollRef}
+                className="
+                    overflow-x-auto
+                    thin-x-scrollbar"
+            >
+                <table className="min-w-full border-separate border-spacing-0">
                     <thead className="border-b border-slate-200 bg-white">
                         <tr className="text-left">
                             {selectable ? (
                                 <th className="w-14 px-6 py-5">
                                     <Checkbox
                                         checked={allChecked}
-                                        onCheckedChange={(checked) => onSelectAll?.(Boolean(checked))}
+                                        onCheckedChange={(checked) =>
+                                            onSelectAll?.(Boolean(checked))
+                                        }
                                     />
                                 </th>
                             ) : null}
@@ -43,8 +131,13 @@ export default function DataTable<T>({
                                     key={`${column.key}-${index}`}
                                     className={cn(
                                         "px-6 py-5 text-xs font-bold uppercase tracking-[0.1em] text-slate-500",
+                                        getStickyClass(column.fixed, true),
                                         column.headerClassName
                                     )}
+                                    style={{
+                                        width: getColumnWidth(column.width),
+                                        minWidth: getColumnWidth(column.width),
+                                    }}
                                 >
                                     {column.title}
                                 </th>
@@ -86,7 +179,15 @@ export default function DataTable<T>({
                                         {columns.map((column, index) => (
                                             <td
                                                 key={`${column.key}-${index}`}
-                                                className={cn("px-6 py-6 align-middle", column.className)}
+                                                className={cn(
+                                                    "px-6 py-2 align-middle",
+                                                    getStickyClass(column.fixed, false),
+                                                    column.className
+                                                )}
+                                                style={{
+                                                    width: getColumnWidth(column.width),
+                                                    minWidth: getColumnWidth(column.width),
+                                                }}
                                             >
                                                 {column.render(row)}
                                             </td>
@@ -106,8 +207,7 @@ export default function DataTable<T>({
                             `Showing ${Math.min(
                                 pagination.currentPage * pagination.pageSize,
                                 pagination.totalItems
-                            )
-                            } of ${pagination.totalItems} items`}
+                            )} of ${pagination.totalItems} items`}
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -115,7 +215,9 @@ export default function DataTable<T>({
                             variant="outline"
                             size="icon"
                             disabled={pagination.currentPage <= 1}
-                            onClick={() => pagination.onPageChange?.(pagination.currentPage - 1)}
+                            onClick={() =>
+                                pagination.onPageChange?.(pagination.currentPage - 1)
+                            }
                             className="h-9 w-9 rounded-lg border-slate-200 text-slate-400"
                         >
                             <ChevronLeft className="h-4 w-4" />
@@ -146,7 +248,9 @@ export default function DataTable<T>({
                             variant="outline"
                             size="icon"
                             disabled={pagination.currentPage >= pagination.totalPages}
-                            onClick={() => pagination.onPageChange?.(pagination.currentPage + 1)}
+                            onClick={() =>
+                                pagination.onPageChange?.(pagination.currentPage + 1)
+                            }
                             className="h-9 w-9 rounded-lg border-slate-200 text-slate-700"
                         >
                             <ChevronRight className="h-4 w-4" />

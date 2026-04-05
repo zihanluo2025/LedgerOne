@@ -1,26 +1,11 @@
 import { apiFetch } from "@/lib/api";
+import type {
+  Product,
+  CreateProductRequest,
+  UpdateProductRequest,
+} from "@/types/product";
 
 
-export type Product = {
-  id: string;
-  name: string;
-  supplier?: string;
-  origin?: string;
-  price?: number;
-  stock?: number;
-  status?: "Active" | "Inactive";
-};
-
-export type CreateProductRequest = {
-  name: string;
-  supplier?: string;
-  origin?: string;
-  price?: number;
-  stock?: number;
-  status?: "Active" | "Inactive";
-};
-
-export type UpdateProductRequest = Partial<CreateProductRequest>;
 
 // POST /products -> 201 Created { id }
 export function createProduct(payload: CreateProductRequest) {

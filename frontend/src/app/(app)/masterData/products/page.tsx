@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
     AlertTriangle,
     CheckCircle2,
@@ -18,12 +18,30 @@ import type { FilterField } from "@/components/common/data-filter-bar/types";
 import KpiCard from "@/components/common/kpi-card";
 import DataTable from "@/components/common/data-table";
 import PageHeader from "@/components/common/PageHeader";
+import ProductDrawer from "./_components/ProductDrawer";
 
-type ProductItem = {
+import { useConfirm } from "@/hooks/use-confirm";
+
+import {
+    createProduct,
+    listProducts,
+    updateProduct,
+    deleteProduct
+} from "@/lib/apis/products";
+
+import type {
+    Product,
+    ProductFormValues,
+} from "@/types/product";
+import { fi } from "zod/locales";
+
+type DrawerMode = "create" | "edit";
+
+type ProductViewItem = {
     id: string;
     name: string;
     sku: string;
-    category: "Hardware" | "Electronics" | "Raw Material";
+    category: string;
     price: number;
     stock: number;
     supplier: string;
@@ -31,77 +49,25 @@ type ProductItem = {
     image: string;
 };
 
-const productData: ProductItem[] = [
-    {
-        id: "1",
-        name: "Steel Chassis",
-        sku: "INB-CH-001",
-        category: "Hardware",
-        price: 450,
-        stock: 500,
-        supplier: "Allied Steel",
-        updatedAt: "Oct 12, 2023",
-        image: "https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?q=80&w=200&auto=format&fit=crop",
-    },
-    {
-        id: "2",
-        name: "Precision Sensor",
-        sku: "ELE-SN-042",
-        category: "Electronics",
-        price: 89,
-        stock: 15,
-        supplier: "TechLogix",
-        updatedAt: "Oct 11, 2023",
-        image: "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=200&auto=format&fit=crop",
-    },
-    {
-        id: "3",
-        name: "Circuit Board V2",
-        sku: "ELE-CB-015",
-        category: "Electronics",
-        price: 120,
-        stock: 0,
-        supplier: "MicroPhase",
-        updatedAt: "Oct 10, 2023",
-        image: "https://images.unsplash.com/photo-1563770660941-20978e870e26?q=80&w=200&auto=format&fit=crop",
-    },
-    {
-        id: "4",
-        name: "Aluminum Sheet",
-        sku: "RAW-AS-021",
-        category: "Raw Material",
-        price: 55,
-        stock: 130,
-        supplier: "MetalWorks",
-        updatedAt: "Oct 09, 2023",
-        image: "https://images.unsplash.com/photo-1517048676732-d65bc937f952?q=80&w=200&auto=format&fit=crop",
-    },
-    {
-        id: "5",
-        name: "Connector Kit",
-        sku: "ELE-CK-118",
-        category: "Electronics",
-        price: 39,
-        stock: 8,
-        supplier: "VoltEdge",
-        updatedAt: "Oct 08, 2023",
-        image: "https://images.unsplash.com/photo-1555617981-dac3880eac6e?q=80&w=200&auto=format&fit=crop",
-    },
-    {
-        id: "6",
-        name: "Support Bracket",
-        sku: "HRD-SB-203",
-        category: "Hardware",
-        price: 25,
-        stock: 260,
-        supplier: "Allied Steel",
-        updatedAt: "Oct 07, 2023",
-        image: "https://images.unsplash.com/photo-1530124566582-a618bc2615dc?q=80&w=200&auto=format&fit=crop",
-    },
-];
-
 function cn(...classes: Array<string | false | undefined>) {
     return classes.filter(Boolean).join(" ");
+}
+
+function normalizeValue(value?: string | null) {
+    return (value ?? "").toLowerCase().trim().replace(/\s+/g, "-");
+}
+
+function formatDate(value?: string | null) {
+    if (!value) return "-";
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+
+    return date.toLocaleDateString("en-AU", {
+        month: "short",
+        day: "2-digit",
+        year: "numeric",
+    });
 }
 
 function getStockStatus(stock: number) {
@@ -110,18 +76,47 @@ function getStockStatus(stock: number) {
     return "In Stock";
 }
 
-function CategoryBadge({ category }: { category: ProductItem["category"] }) {
-    const classMap = {
-        Hardware: "bg-[#DCEBFF] text-[#2D6BCF]",
-        Electronics: "bg-[#DCEBFF] text-[#2D6BCF]",
-        "Raw Material": "bg-[#E8DFFC] text-[#6C5AAE]",
+function mapProductToViewItem(product: Product): ProductViewItem {
+    return {
+        id: String(product.id ?? ""),
+        name: product.name ?? "Unnamed Product",
+        sku: product.sku ?? "-",
+        category: product.category ?? "Uncategorized",
+        price: Number(product.price ?? 0),
+        stock: Number(product.stock ?? 0),
+        supplier: product.supplier ?? "-",
+        updatedAt: formatDate(
+            (product as Product & {
+                updatedAt?: string;
+                updated_at?: string;
+                modifiedAt?: string;
+                createdAt?: string;
+            }).updatedAt ??
+            (product as Product & { updated_at?: string }).updated_at ??
+            (product as Product & { modifiedAt?: string }).modifiedAt ??
+            (product as Product & { createdAt?: string }).createdAt
+        ),
+        image:
+            product.image ??
+            product.imageUrl ??
+            "https://placehold.co/96x96/EAF1FF/5B7BEA?text=IMG",
+    };
+}
+
+function CategoryBadge({ category }: { category: string }) {
+    const normalized = normalizeValue(category);
+
+    const classMap: Record<string, string> = {
+        hardware: "bg-[#DCEBFF] text-[#2D6BCF]",
+        electronics: "bg-[#DCEBFF] text-[#2D6BCF]",
+        "raw-material": "bg-[#E8DFFC] text-[#6C5AAE]",
     };
 
     return (
         <span
             className={cn(
                 "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
-                classMap[category]
+                classMap[normalized] ?? "bg-slate-100 text-slate-600"
             )}
         >
             {category}
@@ -147,7 +142,7 @@ function StockStatusBadge({ stock }: { stock: number }) {
     return (
         <span
             className={cn(
-                "inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-bold",
+                "inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-bold",
                 statusClassMap[status]
             )}
         >
@@ -157,7 +152,7 @@ function StockStatusBadge({ stock }: { stock: number }) {
     );
 }
 
-function ProductCell({ item }: { item: ProductItem }) {
+function ProductCell({ item }: { item: ProductViewItem }) {
     return (
         <div className="flex items-center gap-4">
             <div className="h-12 w-12 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
@@ -169,7 +164,7 @@ function ProductCell({ item }: { item: ProductItem }) {
             </div>
 
             <div>
-                <button className="text-left text-[18px] font-bold leading-7 text-[#183B6B] hover:underline">
+                <button className="text-left  text-[#183B6B] hover:underline">
                     {item.name}
                 </button>
             </div>
@@ -178,42 +173,110 @@ function ProductCell({ item }: { item: ProductItem }) {
 }
 
 export default function ProductsPage() {
+    const { confirm } = useConfirm();
     const [search, setSearch] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const [category, setCategory] = useState("all");
     const [stockStatus, setStockStatus] = useState("all");
     const [supplier, setSupplier] = useState("all");
 
+    const [products, setProducts] = useState<Product[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    const [drawerOpen, setDrawerOpen] = useState(false);
+    const [drawerMode, setDrawerMode] = useState<DrawerMode>("create");
+    const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
     const pageSize = 3;
+
+    async function loadProducts() {
+        try {
+            setLoading(true);
+            const data = await listProducts();
+            setProducts(data.items ?? []);
+        } catch (error) {
+            console.error("Failed to load products:", error);
+            setProducts([]);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    useEffect(() => {
+        loadProducts();
+    }, []);
+
+    function handleOpenCreate() {
+        setDrawerMode("create");
+        setEditingProduct(null);
+        setDrawerOpen(true);
+    }
+
+    function handleOpenEdit(product: Product) {
+        setDrawerMode("edit");
+        setEditingProduct(product);
+        setDrawerOpen(true);
+    }
+
+    async function handleDelete(product: Product) {
+        const ok = await confirm({
+            title: "Delete product?",
+            description: `This action will permanently delete "${product.name}". This cannot be undone.`,
+            confirmText: "Delete",
+            cancelText: "Cancel",
+            variant: "destructive",
+        });
+
+        if (!ok) return;
+
+        try {
+            await deleteProduct(product.id);
+            await loadProducts();
+        } catch (error) {
+            console.error("Failed to delete product:", error);
+        }
+    }
+
+    async function handleSubmit(values: ProductFormValues) {
+        if (drawerMode === "create") {
+            await createProduct(values);
+        } else if (editingProduct) {
+            await updateProduct(editingProduct.id, values);
+        }
+
+        setDrawerOpen(false);
+        await loadProducts();
+    }
+
+    const tableData = useMemo<ProductViewItem[]>(() => {
+        return products.map(mapProductToViewItem);
+    }, [products]);
 
     const filteredData = useMemo(() => {
         const keyword = search.trim().toLowerCase();
 
-        return productData.filter((item) => {
+        return tableData.filter((item) => {
             const matchKeyword =
                 !keyword ||
                 item.name.toLowerCase().includes(keyword) ||
                 item.sku.toLowerCase().includes(keyword) ||
-                item.category.toLowerCase().includes(keyword);
+                item.category.toLowerCase().includes(keyword) ||
+                item.supplier.toLowerCase().includes(keyword);
 
             const matchCategory =
-                category === "all" ||
-                item.category.toLowerCase().replace(/\s+/g, "-") === category;
+                category === "all" || normalizeValue(item.category) === category;
 
-            const currentStockStatus = getStockStatus(item.stock)
-                .toLowerCase()
-                .replace(/\s+/g, "-");
-
+            const currentStockStatus = normalizeValue(getStockStatus(item.stock));
             const matchStockStatus =
                 stockStatus === "all" || currentStockStatus === stockStatus;
 
-            const normalizedSupplier = item.supplier.toLowerCase().replace(/\s+/g, "-");
+            const normalizedSupplier = normalizeValue(item.supplier);
             const matchSupplier =
                 supplier === "all" || normalizedSupplier === supplier;
 
             return matchKeyword && matchCategory && matchStockStatus && matchSupplier;
         });
-    }, [search, category, stockStatus, supplier]);
+    }, [tableData, search, category, stockStatus, supplier]);
 
     const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
 
@@ -221,6 +284,53 @@ export default function ProductsPage() {
         const start = (currentPage - 1) * pageSize;
         return filteredData.slice(start, start + pageSize);
     }, [filteredData, currentPage]);
+
+    useEffect(() => {
+        if (currentPage > totalPages) {
+            setCurrentPage(1);
+        }
+    }, [currentPage, totalPages]);
+
+    const categoryOptions = useMemo(() => {
+        const uniqueCategories = Array.from(
+            new Set(
+                tableData
+                    .map((item) => item.category)
+                    .filter(Boolean)
+            )
+        );
+
+        return [
+            { label: "All Categories", value: "all" },
+            ...uniqueCategories.map((item) => ({
+                label: item,
+                value: normalizeValue(item),
+            })),
+        ];
+    }, [tableData]);
+
+    const supplierOptions = useMemo(() => {
+        const uniqueSuppliers = Array.from(
+            new Set(
+                tableData
+                    .map((item) => item.supplier)
+                    .filter((item) => item && item !== "-")
+            )
+        );
+
+        return [
+            { label: "All Suppliers", value: "all" },
+            ...uniqueSuppliers.map((item) => ({
+                label: item,
+                value: normalizeValue(item),
+            })),
+        ];
+    }, [tableData]);
+
+    const totalProducts = tableData.length;
+    const inStockCount = tableData.filter((item) => getStockStatus(item.stock) === "In Stock").length;
+    const lowStockCount = tableData.filter((item) => getStockStatus(item.stock) === "Low Stock").length;
+    const outOfStockCount = tableData.filter((item) => getStockStatus(item.stock) === "Out of Stock").length;
 
     const filterFields: FilterField[] = [
         {
@@ -242,12 +352,7 @@ export default function ProductsPage() {
                 setCategory(value);
                 setCurrentPage(1);
             },
-            options: [
-                { label: "All Categories", value: "all" },
-                { label: "Hardware", value: "hardware" },
-                { label: "Electronics", value: "electronics" },
-                { label: "Raw Material", value: "raw-material" },
-            ],
+            options: categoryOptions,
         },
         {
             key: "stockStatus",
@@ -274,14 +379,7 @@ export default function ProductsPage() {
                 setSupplier(value);
                 setCurrentPage(1);
             },
-            options: [
-                { label: "All Suppliers", value: "all" },
-                { label: "Allied Steel", value: "allied-steel" },
-                { label: "TechLogix", value: "techlogix" },
-                { label: "MicroPhase", value: "microphase" },
-                { label: "MetalWorks", value: "metalworks" },
-                { label: "VoltEdge", value: "voltedge" },
-            ],
+            options: supplierOptions,
         },
     ];
 
@@ -289,51 +387,88 @@ export default function ProductsPage() {
         {
             key: "product",
             title: "Product",
-            render: (item: ProductItem) => <ProductCell item={item} />,
+            fixed: "left",
+
+            render: (item: ProductViewItem) => <ProductCell item={item} />,
         },
         {
             key: "sku",
             title: "SKU",
-            className: "text-[15px] font-medium text-[#32577E]",
-            render: (item: ProductItem) => (
-                <span className="whitespace-pre-line break-words">{item.sku.replace(/-/g, "-\n")}</span>
+            className: "text-[#32577E]",
+            render: (item: ProductViewItem) => (
+                <span className="whitespace-pre-line break-words">
+                    {item.sku.replace(/-/g, "-\n")}
+                </span>
             ),
         },
         {
             key: "category",
             title: "Category",
-            render: (item: ProductItem) => <CategoryBadge category={item.category} />,
+            render: (item: ProductViewItem) => <CategoryBadge category={item.category} />,
         },
         {
             key: "price",
             title: "Price",
-            className: "text-[18px] font-bold text-[#183B6B]",
-            render: (item: ProductItem) => `$${item.price.toFixed(2)}`,
-        },
-        {
-            key: "stock",
-            title: "Stock",
-            className: "text-[18px] font-semibold text-[#183B6B]",
-            render: (item: ProductItem) => item.stock,
+            className: "text-[#183B6B]",
+            render: (item: ProductViewItem) => `$${item.price.toFixed(2)}`,
         },
         {
             key: "status",
             title: "Status",
-            render: (item: ProductItem) => <StockStatusBadge stock={item.stock} />,
+            render: (item: ProductViewItem) => <StockStatusBadge stock={item.stock} />,
         },
         {
             key: "supplier",
             title: "Supplier",
-            className: "text-[16px] font-medium text-[#32577E]",
-            render: (item: ProductItem) => item.supplier,
+            className: "text-[#32577E]",
+            render: (item: ProductViewItem) => item.supplier,
         },
         {
             key: "updatedAt",
             title: "Updated",
-            className: "text-[16px] font-medium text-[#2D6BCF]",
-            render: (item: ProductItem) => (
-                <span className="whitespace-pre-line">{item.updatedAt.replace(", ", ",\n")}</span>
+            className: "text-[#2D6BCF]",
+            render: (item: ProductViewItem) => (
+                <span className="whitespace-pre-line">
+                    {item.updatedAt === "-" ? "-" : item.updatedAt.replace(", ", ",\n")}
+                </span>
             ),
+        },
+        {
+            key: "actions",
+            title: "Actions",
+            fixed: "right",
+            render: (item: ProductViewItem) => {
+                const originalProduct = products.find((p) => String(p.id) === item.id);
+
+                return (
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                                if (originalProduct) {
+                                    handleOpenEdit(originalProduct);
+                                }
+                            }}
+                        >
+                            Edit
+                        </Button>
+
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                            onClick={() => {
+                                if (originalProduct) {
+                                    handleDelete(originalProduct);
+                                }
+                            }}
+                        >
+                            Delete
+                        </Button>
+                    </div>
+                );
+            },
         },
     ];
 
@@ -347,85 +482,82 @@ export default function ProductsPage() {
                         {
                             label: "Import",
                             icon: <Upload size={22} strokeWidth={2.2} />,
-                            onClick: () => console.log("Import clicked")
+                            onClick: () => console.log("Import clicked"),
                         },
                         {
                             label: "Export",
                             icon: <Download size={22} strokeWidth={2.2} />,
-                            onClick: () => console.log("Export clicked")
+                            onClick: () => console.log("Export clicked"),
                         },
                         {
                             label: "Add Product",
                             icon: <Plus size={22} strokeWidth={2.2} />,
-                            onClick: () => console.log("Add Product clicked")
+                            onClick: handleOpenCreate,
                         },
                     ]}
                 />
 
-
-
-
                 <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
                     <KpiCard
                         title="Total Products"
-                        value="1,248"
+                        value={loading ? "..." : totalProducts.toString()}
                         description=""
                         rightIcon={
                             <div className="flex items-center gap-3">
                                 <div className="rounded-lg bg-[#EEF4FF] p-3 text-[#5B7BEA]">
                                     <Package className="h-5 w-5" />
                                 </div>
-                                <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-600">
-                                    +12% vs last month
-                                </span>
+                                {/* <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-600">
+                                    Live data
+                                </span> */}
                             </div>
                         }
                     />
 
                     <KpiCard
                         title="In Stock"
-                        value="1,180"
+                        value={loading ? "..." : inStockCount.toString()}
                         description=""
                         rightIcon={
                             <div className="flex items-center gap-3">
                                 <div className="rounded-lg bg-emerald-50 p-3 text-emerald-600">
                                     <CheckCircle2 className="h-5 w-5" />
                                 </div>
-                                <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-600">
+                                {/* <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-600">
                                     Normal
-                                </span>
+                                </span> */}
                             </div>
                         }
                     />
 
                     <KpiCard
                         title="Low Stock"
-                        value="42"
+                        value={loading ? "..." : lowStockCount.toString()}
                         description=""
                         rightIcon={
                             <div className="flex items-center gap-3">
                                 <div className="rounded-lg bg-orange-50 p-3 text-orange-500">
                                     <AlertTriangle className="h-5 w-5" />
                                 </div>
-                                <span className="rounded-full bg-orange-50 px-3 py-1 text-sm font-semibold text-orange-500">
+                                {/* <span className="rounded-full bg-orange-50 px-3 py-1 text-sm font-semibold text-orange-500">
                                     Warning status
-                                </span>
+                                </span> */}
                             </div>
                         }
                     />
 
                     <KpiCard
                         title="Out of Stock"
-                        value="26"
+                        value={loading ? "..." : outOfStockCount.toString()}
                         description=""
                         rightIcon={
                             <div className="flex items-center gap-3">
                                 <div className="rounded-lg bg-rose-50 p-3 text-rose-500">
                                     <XCircle className="h-5 w-5" />
                                 </div>
-                                <span className="rounded-full bg-rose-50 px-3 py-1 text-sm font-semibold text-rose-500">
+                                {/* <span className="rounded-full bg-rose-50 px-3 py-1 text-sm font-semibold text-rose-500">
                                     Critical status
-                                </span>
+                                </span> */}
                             </div>
                         }
                     />
@@ -447,11 +579,12 @@ export default function ProductsPage() {
                 <DataTable
                     data={pagedData}
                     columns={columns}
-                    rowKey={(row: ProductItem) => row.id}
+                    rowKey={(row: ProductViewItem) => row.id}
                     selectable={false}
-                    emptyText="No products found"
+                    emptyText={loading ? "Loading products..." : "No products found"}
                     footerLeft={`Showing ${filteredData.length === 0 ? 0 : (currentPage - 1) * pageSize + 1
-                        } to ${Math.min(currentPage * pageSize, filteredData.length)} of ${filteredData.length} products`}
+                        } to ${Math.min(currentPage * pageSize, filteredData.length)} of ${filteredData.length
+                        } products`}
                     pagination={{
                         currentPage,
                         totalPages,
@@ -460,7 +593,15 @@ export default function ProductsPage() {
                         onPageChange: setCurrentPage,
                     }}
                 />
+
+                <ProductDrawer
+                    open={drawerOpen}
+                    mode={drawerMode}
+                    initialData={editingProduct}
+                    onClose={() => setDrawerOpen(false)}
+                    onSubmit={handleSubmit}
+                />
             </div>
-        </div >
+        </div>
     );
 }
