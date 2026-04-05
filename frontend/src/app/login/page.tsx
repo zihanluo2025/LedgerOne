@@ -34,15 +34,13 @@ export default function LoginPage() {
         try {
             const res = await loginWithPassword(email, password);
 
-
             if (res.isSignedIn) {
-                toastSuccess("Welcome back!");
+                toastSuccess(res.alreadySignedIn ? "Welcome back!" : "Login successful!");
                 router.push("/dashboard");
-            } else {
-                console.log("Next step:", res.nextStep);
-
-                toastWarning("Additional verification required");
+                return;
             }
+
+            toastError("Additional authentication step is required.");
         } catch (err: unknown) {
             toastError((err as Error)?.message || "Login failed");
         }

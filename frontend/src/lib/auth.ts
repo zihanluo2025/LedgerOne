@@ -5,7 +5,7 @@ import {
   signIn,
   signOut,
 } from "aws-amplify/auth";
-
+import type { SignInOutput } from "aws-amplify/auth";
 
 const userPoolId = process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID!;
 const userPoolClientId = process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID!;
@@ -57,10 +57,9 @@ function decodeJwtPayload(token: string): Record<string, unknown> | null {
   }
 }
 
-
 export async function isSignedIn(): Promise<boolean> {
   try {
-    const session = await fetchAuthSession({ forceRefresh: true });
+    const session = await fetchAuthSession();
     const idToken = session.tokens?.idToken?.toString();
     if (!idToken) return false;
 
@@ -70,7 +69,7 @@ export async function isSignedIn(): Promise<boolean> {
     if (typeof exp !== "number") return false;
 
     const nowSec = Math.floor(Date.now() / 1000);
-    return exp > nowSec + 30; // 30s buffer
+    return exp > nowSec + 30;
   } catch {
     return false;
   }
@@ -78,22 +77,45 @@ export async function isSignedIn(): Promise<boolean> {
 
 export async function startHostedLogin(options?: { redirectTo?: string }) {
   const signedIn = await isSignedIn();
+
   if (signedIn) {
     window.location.href = options?.redirectTo ?? "/dashboard";
     return;
   }
 
-
   await signInWithRedirect();
 }
 
-export async function loginWithPassword(email: string, password: string) {
+export type PasswordLoginResult = {
+  isSignedIn: boolean;
+  nextStep: SignInOutput["nextStep"] | null;
+  alreadySignedIn: boolean;
+};
+
+export async function loginWithPassword(
+  email: string,
+  password: string
+): Promise<PasswordLoginResult> {
+  const signedIn = await isSignedIn();
+
+  if (signedIn) {
+    return {
+      isSignedIn: true,
+      nextStep: null,
+      alreadySignedIn: true,
+    };
+  }
+
   const res = await signIn({
     username: email,
     password,
   });
 
-  return res;
+  return {
+    isSignedIn: res.isSignedIn,
+    nextStep: res.nextStep,
+    alreadySignedIn: false,
+  };
 }
 
 export async function logout() {
@@ -103,20 +125,12 @@ export async function logout() {
     console.warn("signOut error", e);
   }
 
-
-  localStorage.clear();
-  sessionStorage.clear();
-
-
-  document.cookie = "erp_auth=; path=/; max-age=0";
-
-  // Redirect to login page after logout
   window.location.href = "/login";
 }
 
 export async function getAccessToken(): Promise<string | null> {
   try {
-    const session = await fetchAuthSession({ forceRefresh: true });
+    const session = await fetchAuthSession();
     return session.tokens?.accessToken?.toString() ?? null;
   } catch {
     return null;
@@ -125,17 +139,20 @@ export async function getAccessToken(): Promise<string | null> {
 
 export async function waitForToken(maxMs = 4000): Promise<string | null> {
   const start = Date.now();
+
   while (Date.now() - start < maxMs) {
     const token = await getAccessToken();
     if (token) return token;
-    await new Promise((r) => setTimeout(r, 200));
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
   }
+
   return null;
 }
 
 export async function getIdToken(): Promise<string | null> {
   try {
-    const session = await fetchAuthSession({ forceRefresh: true });
+    const session = await fetchAuthSession();
     return session.tokens?.idToken?.toString() ?? null;
   } catch {
     return null;
