@@ -4,7 +4,7 @@
 - Account: admin@example.com
 - Password: Admin12345.
 
-A modern cloud-based ERP demo system built with ASP.NET Core (.NET 8) and Next.js 14, deployed on AWS (Lambda + API Gateway + Amplify).
+A modern cloud-based ERP  system built with ASP.NET Core (.NET 8) and Next.js 14, deployed on AWS (Lambda + API Gateway + Amplify).
 
 This project demonstrates full-stack engineering capability including backend API design, frontend UI architecture, cloud deployment, and DevOps automation.
 
@@ -92,7 +92,7 @@ mini-erp/
 ```
 
 # Purpose of This Project
-This project was built to demonstrate:
+This project was built to nstrate:
 
 - Full-stack development capability
 - Cloud-native architecture on AWS
