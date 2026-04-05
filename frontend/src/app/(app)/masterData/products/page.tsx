@@ -387,7 +387,7 @@ export default function ProductsPage() {
         {
             key: "product",
             title: "Product",
-            fixed: "left",
+
 
             render: (item: ProductViewItem) => <ProductCell item={item} />,
         },
@@ -436,7 +436,6 @@ export default function ProductsPage() {
         {
             key: "actions",
             title: "Actions",
-            fixed: "right",
             render: (item: ProductViewItem) => {
                 const originalProduct = products.find((p) => String(p.id) === item.id);
 
