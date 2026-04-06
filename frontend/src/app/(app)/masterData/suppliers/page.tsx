@@ -326,7 +326,7 @@ export default function SuppliersPage() {
             className: "text-[14px] font-medium text-[#32577E]",
             render: (item: SupplierItem) => (
                 <span className="whitespace-pre-line">
-                    {item.region.replace(" ", "\n")}
+                    {item.region}
                 </span>
             ),
         },
@@ -341,7 +341,7 @@ export default function SuppliersPage() {
             className: "text-[14px] font-medium text-slate-500",
             render: (item: SupplierItem) => (
                 <span className="whitespace-pre-line">
-                    {item.lastOrder.replace(", ", ",\n")}
+                    {item.lastOrder}
                 </span>
             ),
         },
