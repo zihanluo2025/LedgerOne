@@ -1,6 +1,8 @@
 using MiniErp.Application.Abstractions;
 using MiniErp.Application.Products;
 using MiniErp.Application.Users;
+using MiniErp.Application.Suppliers;
+
 using MiniErp.Domain.Auth;
 using MiniErp.Infrastructure.Common;
 using MiniErp.Infrastructure.Products;
@@ -9,6 +11,8 @@ using Amazon.DynamoDBv2;
 using Amazon.Lambda.AspNetCoreServer.Hosting;
 using Amazon.CognitoIdentityProvider;
 using System.Text.Json.Serialization;
+using MiniErp.Infrastructure.Suppliers;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,6 +21,9 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
 
+builder.Services.AddControllers();
+builder.Services.AddScoped<SupplierService>();
+builder.Services.AddScoped<ISupplierRepository, SupplierRepository>();
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
@@ -81,6 +88,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+app.MapControllers();
 
 app.MapGet("/health", () => Results.Ok(new { ok = true }));
 
@@ -92,87 +100,8 @@ app.MapGet("/me", (ICurrentUser user) => Results.Ok(new
     orgId = user.OrgId
 }));
 
-app.MapPost("/products", async (MiniErp.Application.Products.Models.CreateProductRequest req, ProductService svc, CancellationToken ct) =>
-{
-    var id = await svc.CreateAsync(req, ct);
-    return Results.Created($"/products/{id}", new { id });
-});
 
-app.MapGet("/products/{id}", async (string id, ProductService svc, CancellationToken ct) =>
-{
-    var product = await svc.GetAsync(id, ct);
-    return product is null ? Results.NotFound() : Results.Ok(product);
-});
 
-app.MapGet("/products", async (string? keyword, int? limit, string? cursor, ProductService svc, CancellationToken ct) =>
-{
-    var data = await svc.ListAsync(keyword, limit ?? 50, cursor, ct);
-    return Results.Ok(new { items = data });
-});
-// page list with cursor-based pagination
-app.MapGet("/products/page", async (string? keyword, int? limit, string? cursor, ProductService svc, ICurrentUser user, CancellationToken ct) =>
-{
-    var page = await svc.PageListAsync(user.OrgId, keyword, limit ?? 50, cursor, ct);
-    return Results.Ok(new { items = page.Items, nextCursor = page.NextCursor });
-});
-app.MapPut("/products/{id}", async (
-    string id,
-    MiniErp.Application.Products.Models.UpdateProductRequest req,
-    ProductService svc,
-    CancellationToken ct) =>
-{
-    await svc.UpdateAsync(id, req, ct);
-    return Results.NoContent();
-});
-
-app.MapDelete("/products/{id}", async (
-    string id,
-    ProductService svc,
-    CancellationToken ct) =>
-{
-    await svc.SoftDeleteAsync(id, ct);
-    return Results.NoContent();
-});
-
-// Users (Cognito-backed)
-app.MapGet("/users", async (
-    string? keyword,
-    int? limit,
-    string? cursor,
-    IUserDirectory users,
-    CancellationToken ct) =>
-{
-    var page = await users.ListAsync(keyword, limit ?? 50, cursor, ct);
-    return Results.Ok(new { items = page.Items, nextCursor = page.NextCursor });
-});
-
-app.MapPost("/users", async (
-    CreateUserRequest req,
-    IUserDirectory users,
-    CancellationToken ct) =>
-{
-    var id = await users.CreateAsync(req, ct);
-    return Results.Created($"/users/{id}", new { id });
-});
-
-app.MapPut("/users/{id}", async (
-    string id,
-    UpdateUserRequest req,
-    IUserDirectory users,
-    CancellationToken ct) =>
-{
-    await users.UpdateAsync(id, req, ct);
-    return Results.NoContent();
-});
-
-app.MapDelete("/users/{id}", async (
-    string id,
-    IUserDirectory users,
-    CancellationToken ct) =>
-{
-    await users.DeleteAsync(id, ct);
-    return Results.NoContent();
-});
 
 app.Run();
 
