@@ -361,7 +361,7 @@ export default function ApprovalAuditCenterPage() {
             className: "text-[14px] font-medium text-slate-400",
             render: (item: AuditItem) => (
                 <span className="whitespace-pre-line">
-                    {item.submittedAt.replace(", ", ",\n")}
+                    {item.submittedAt}
                 </span>
             ),
         },
