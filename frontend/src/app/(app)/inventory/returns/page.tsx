@@ -211,7 +211,7 @@ export default function ReturnsPage() {
             title: "Return No",
             render: (item: ReturnItem) => (
                 <button className="max-w-[120px] text-left text-[16px] font-bold leading-8 text-[#175CFF] hover:underline">
-                    {item.returnNo.replace(/-/g, "-\n")}
+                    {item.returnNo}
                 </button>
             ),
         },
@@ -237,7 +237,7 @@ export default function ReturnsPage() {
             className: "text-[16px] font-medium text-[#4F6786]",
             render: (item: ReturnItem) => (
                 <span className="whitespace-pre-line">
-                    {item.requestedAt.replace(", ", ",\n")}
+                    {item.requestedAt}
                 </span>
             ),
         },

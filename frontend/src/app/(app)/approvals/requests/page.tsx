@@ -291,7 +291,7 @@ export default function MySubmittedRequestsPage() {
             className: "text-[15px] font-medium text-slate-500",
             render: (item: SubmittedItem) => (
                 <span className="whitespace-pre-line">
-                    {item.submittedAt.replace(" ", "\n")}
+                    {item.submittedAt}
                 </span>
             ),
         },
@@ -301,7 +301,7 @@ export default function MySubmittedRequestsPage() {
             className: "text-[15px] font-medium text-slate-500",
             render: (item: SubmittedItem) => (
                 <span className="whitespace-pre-line">
-                    {item.lastUpdated.replace(" ", "\n")}
+                    {item.lastUpdated}
                 </span>
             ),
         },

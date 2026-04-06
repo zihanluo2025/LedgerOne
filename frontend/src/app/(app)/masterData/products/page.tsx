@@ -399,7 +399,7 @@ export default function ProductsPage() {
             className: "text-[#32577E]",
             render: (item: ProductViewItem) => (
                 <span className="whitespace-pre-line break-words">
-                    {item.sku.replace(/-/g, "-\n")}
+                    {item.sku}
                 </span>
             ),
         },
@@ -431,7 +431,7 @@ export default function ProductsPage() {
             className: "text-[#2D6BCF]",
             render: (item: ProductViewItem) => (
                 <span className="whitespace-pre-line">
-                    {item.updatedAt === "-" ? "-" : item.updatedAt.replace(", ", ",\n")}
+                    {item.updatedAt === "-" ? "-" : item.updatedAt}
                 </span>
             ),
         },
