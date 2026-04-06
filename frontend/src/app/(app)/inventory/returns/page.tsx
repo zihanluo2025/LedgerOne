@@ -11,13 +11,15 @@ import {
     ClipboardCheck,
     AlertTriangle,
     MoreVertical,
+    RefreshCw,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import KpiCard from "@/components/common/kpi-card";
 import DataTable from "@/components/common/data-table";
 import PageHeader from "@/components/common/PageHeader";
+import DataFilterBar from "@/components/common/data-filter-bar";
+import { FilterField } from "@/components/common/data-filter-bar/types";
 
 type ReturnType = "Customer" | "Supplier";
 type ReturnStatus = "Inspecting" | "Completed" | "Rejected";
@@ -95,23 +97,9 @@ function cn(...classes: Array<string | false | undefined>) {
     return classes.filter(Boolean).join(" ");
 }
 
-function ReturnTypeBadge({ type }: { type: ReturnType }) {
-    const map = {
-        Customer: "bg-[#DCEBFF] text-[#2563EB]",
-        Supplier: "bg-slate-100 text-slate-500",
-    };
 
-    return (
-        <span
-            className={cn(
-                "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
-                map[type]
-            )}
-        >
-            {type}
-        </span>
-    );
-}
+
+
 
 function ReturnStatusBadge({ status }: { status: ReturnStatus }) {
     const classMap = {
@@ -175,79 +163,7 @@ function ActionCell() {
     );
 }
 
-function ReturnsFilterPanel({
-    search,
-    onSearchChange,
-}: {
-    search: string;
-    onSearchChange: (value: string) => void;
-}) {
-    return (
-        <div className="rounded-3xl border border-slate-200/70 bg-[#EEF3FB] p-6 shadow-sm">
-            <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr_1fr]">
-                <div>
-                    <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-[#5E7AA2]">
-                        Search Returns
-                    </p>
-                    <div className="relative">
-                        <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                        <Input
-                            value={search}
-                            onChange={(e) => onSearchChange(e.target.value)}
-                            placeholder="Return No / Product / Customer..."
-                            className="h-12 rounded-xl border border-slate-200 bg-white pl-11 text-sm shadow-none placeholder:text-slate-400"
-                        />
-                    </div>
-                </div>
 
-                <div>
-                    <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-[#5E7AA2]">
-                        Return Type
-                    </p>
-                    <Button
-                        variant="outline"
-                        className="h-12 w-full justify-between rounded-xl border-slate-200 bg-white px-4 text-[#183B6B] hover:bg-slate-50"
-                    >
-                        <span className="font-medium">All Types</span>
-                        <span className="text-slate-400">⌄</span>
-                    </Button>
-                </div>
-
-                <div>
-                    <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-[#5E7AA2]">
-                        Status
-                    </p>
-                    <Button
-                        variant="outline"
-                        className="h-12 w-full justify-between rounded-xl border-slate-200 bg-white px-4 text-[#183B6B] hover:bg-slate-50"
-                    >
-                        <span className="font-medium">All Statuses</span>
-                        <span className="text-slate-400">⌄</span>
-                    </Button>
-                </div>
-            </div>
-
-            <div className="mt-6 flex flex-col gap-4 lg:flex-row lg:items-end">
-                <div className="w-full lg:max-w-[260px]">
-                    <p className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-[#5E7AA2]">
-                        Date Range
-                    </p>
-                    <Button
-                        variant="outline"
-                        className="h-12 w-full justify-start rounded-xl border-slate-200 bg-white px-4 text-[#183B6B] hover:bg-slate-50"
-                    >
-                        <CalendarDays className="mr-2 h-4 w-4" />
-                        Oct 01, 2023 - Oct 31, 2023
-                    </Button>
-                </div>
-
-                <Button className="h-12 rounded-xl bg-[#0B3A6E] px-8 text-white hover:bg-[#082C53]">
-                    Apply
-                </Button>
-            </div>
-        </div>
-    );
-}
 
 export default function ReturnsPage() {
     const [search, setSearch] = useState("");
@@ -268,6 +184,19 @@ export default function ReturnsPage() {
         );
     }, [search]);
 
+    const filterFields: FilterField[] = [
+        {
+            key: "search",
+            type: "search",
+            value: search,
+            onChange: (value) => {
+                setSearch(value);
+                setCurrentPage(1);
+            },
+            placeholder: "Filter by Name, Company or ID...",
+        }
+    ];
+
     const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
 
     const pagedData = useMemo(() => {
@@ -284,11 +213,6 @@ export default function ReturnsPage() {
                     {item.returnNo.replace(/-/g, "-\n")}
                 </button>
             ),
-        },
-        {
-            key: "type",
-            title: "Type",
-            render: (item: ReturnItem) => <ReturnTypeBadge type={item.type} />,
         },
         {
             key: "partner",
@@ -355,14 +279,15 @@ export default function ReturnsPage() {
                         title="Returns This Month"
                         value="42"
                         description=""
+                        footer={<span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-600">
+                            +12% vs LY
+                        </span>}
                         rightIcon={
                             <div className="flex items-center gap-3">
                                 <div className="rounded-lg bg-[#EEF4FF] p-3 text-[#2563EB]">
                                     <ClipboardCheck className="h-5 w-5" />
                                 </div>
-                                <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-600">
-                                    +12% vs LY
-                                </span>
+
                             </div>
                         }
                     />
@@ -371,14 +296,15 @@ export default function ReturnsPage() {
                         title="Pending Inspection"
                         value="8"
                         description=""
+                        footer={<span className="rounded-full bg-rose-50 px-3 py-1 text-sm font-semibold text-[#A94442]">
+                            Urgent
+                        </span>}
                         rightIcon={
                             <div className="flex items-center gap-3">
                                 <div className="rounded-lg bg-orange-50 p-3 text-orange-500">
                                     <AlertTriangle className="h-5 w-5" />
                                 </div>
-                                <span className="rounded-full bg-rose-50 px-3 py-1 text-sm font-semibold text-[#A94442]">
-                                    Urgent
-                                </span>
+
                             </div>
                         }
                     />
@@ -387,14 +313,15 @@ export default function ReturnsPage() {
                         title="Refunded"
                         value="15"
                         description=""
+                        footer={<span className="rounded-full bg-[#EAF1FF] px-3 py-1 text-sm font-semibold text-[#5E7AA2]">
+                            In Sync
+                        </span>}
                         rightIcon={
                             <div className="flex items-center gap-3">
                                 <div className="rounded-lg bg-[#F2EAFE] p-3 text-[#6E56A8]">
                                     <RotateCcw className="h-5 w-5" />
                                 </div>
-                                <span className="rounded-full bg-[#EAF1FF] px-3 py-1 text-sm font-semibold text-[#5E7AA2]">
-                                    In Sync
-                                </span>
+
                             </div>
                         }
                     />
@@ -403,21 +330,33 @@ export default function ReturnsPage() {
                         title="Rejected Returns"
                         value="2"
                         description=""
+                        footer={<span className="rounded-full bg-[#EAF1FF] px-3 py-1 text-sm font-semibold text-[#2563EB]">
+                            Active
+                        </span>}
                         rightIcon={
                             <div className="flex items-center gap-3">
                                 <div className="rounded-lg bg-[#EEF4FF] p-3 text-[#0B3A6E]">
                                     <Ban className="h-5 w-5" />
                                 </div>
-                                <span className="rounded-full bg-[#EAF1FF] px-3 py-1 text-sm font-semibold text-[#2563EB]">
-                                    Active
-                                </span>
+
                             </div>
                         }
                     />
                 </div>
 
                 {/* filter panel */}
-                <ReturnsFilterPanel search={search} onSearchChange={setSearch} />
+                <DataFilterBar
+                    fields={filterFields}
+                    actionSlot={
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-12 w-12 rounded-xl bg-[#EAF1FF] text-[#5B7BEA] hover:bg-[#DFE9FF]"
+                        >
+                            <RefreshCw className="h-5 w-5" />
+                        </Button>
+                    }
+                />
 
                 {/* table */}
                 <DataTable

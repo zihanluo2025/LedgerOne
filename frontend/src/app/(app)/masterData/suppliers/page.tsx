@@ -10,6 +10,8 @@ import {
     Upload,
     Users,
     ClipboardList,
+    Trash2,
+    Pencil,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -198,26 +200,6 @@ function ContactCell({ item }: { item: SupplierItem }) {
     );
 }
 
-function ActionCell() {
-    return (
-        <button className="text-slate-400 transition hover:text-[#175CFF]">
-            <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-            >
-                <path d="M12 20h9" />
-                <path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4Z" />
-            </svg>
-        </button>
-    );
-}
 
 export default function SuppliersPage() {
     const [search, setSearch] = useState("");
@@ -363,16 +345,28 @@ export default function SuppliersPage() {
             ),
         },
         {
-            key: "updated",
-            title: "Updated",
-            className: "text-[14px] font-medium text-slate-500",
-            render: (item: SupplierItem) => item.updated,
-        },
-        {
             key: "actions",
             title: "Actions",
-            render: () => <ActionCell />,
-        },
+            render: () => {
+                return (
+                    <div className="flex items-center gap-2">
+
+                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg"
+                        >
+                            <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+
+                            className="h-9 w-9 rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    </div>
+                )
+            },
+        }
     ];
 
     return (
@@ -405,30 +399,31 @@ export default function SuppliersPage() {
                         title="Total Suppliers"
                         value="124"
                         description=""
+                        footer={<span className="text-sm font-semibold text-emerald-600">+4.5%</span>}
                         rightIcon={
                             <div className="flex items-center gap-3">
                                 <div className="rounded-lg bg-[#EEF4FF] p-3 text-[#5B7BEA]">
                                     <Users className="h-5 w-5" />
                                 </div>
-                                <span className="text-sm font-semibold text-emerald-600">+4.5%</span>
+
                             </div>
                         }
-                        className="border-l-4 border-l-[#175CFF]"
+
                     />
 
                     <KpiCard
                         title="Active Suppliers"
                         value="112"
                         description=""
+                        footer={<span className="text-sm font-semibold text-slate-400">90.3%</span>}
                         rightIcon={
                             <div className="flex items-center gap-3">
                                 <div className="rounded-lg bg-emerald-50 p-3 text-emerald-600">
                                     <CheckCircle2 className="h-5 w-5" />
                                 </div>
-                                <span className="text-sm font-semibold text-slate-400">90.3%</span>
+
                             </div>
                         }
-                        className="border-l-4 border-l-emerald-500"
                     />
 
                     <KpiCard

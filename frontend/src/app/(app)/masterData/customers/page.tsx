@@ -10,6 +10,8 @@ import {
     Sparkles,
     Users,
     UserCheck,
+    Trash2,
+    Pencil,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -18,6 +20,7 @@ import type { FilterField } from "@/components/common/data-filter-bar/types";
 import KpiCard from "@/components/common/kpi-card";
 import DataTable from "@/components/common/data-table";
 import PageHeader from "@/components/common/PageHeader";
+import { fi } from "zod/locales";
 
 type CustomerStatus = "VIP" | "Active" | "New" | "Inactive";
 type CustomerSegment = "Enterprise" | "SME" | "Startup";
@@ -307,6 +310,7 @@ export default function CustomersPage() {
         {
             key: "customer",
             title: "Customer",
+            fixed: "left",
             render: (item: CustomerItem) => <CustomerCell item={item} />,
         },
         {
@@ -342,6 +346,30 @@ export default function CustomersPage() {
             title: "Status",
             render: (item: CustomerItem) => <StatusBadge status={item.status} />,
         },
+        {
+            key: "actions",
+            title: "Actions",
+            fixed: "right",
+            render: () => {
+                return (
+                    <div className="flex items-center gap-2">
+
+                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg"
+                        >
+                            <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+
+                            className="h-9 w-9 rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    </div>
+                )
+            },
+        }
     ];
 
     return (
@@ -369,68 +397,72 @@ export default function CustomersPage() {
                         title="Total Customers"
                         value="12,482"
                         description=""
+                        footer={<span className="rounded-md bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-600">
+                            +12%
+                        </span>}
                         rightIcon={
                             <div className="flex items-center gap-3">
                                 <div className="rounded-lg bg-[#EEF4FF] p-3 text-[#5B7BEA]">
                                     <Users className="h-5 w-5" />
                                 </div>
-                                <span className="rounded-md bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-600">
-                                    +12%
-                                </span>
+
                             </div>
                         }
-                        className="border-l-4 border-l-[#175CFF]"
+
                     />
 
                     <KpiCard
                         title="Active Customers"
                         value="9,210"
                         description=""
+                        footer={<span className="rounded-md bg-emerald-50 px-3 py-1 text-sm font-semibold text-[#0F8F83]">
+                            +5%
+                        </span>}
                         rightIcon={
                             <div className="flex items-center gap-3">
                                 <div className="rounded-lg bg-[#E8FAF6] p-3 text-[#14B8A6]">
                                     <UserCheck className="h-5 w-5" />
                                 </div>
-                                <span className="rounded-md bg-emerald-50 px-3 py-1 text-sm font-semibold text-[#0F8F83]">
-                                    +5%
-                                </span>
+
                             </div>
                         }
-                        className="border-l-4 border-l-[#2DD4BF]"
+
                     />
 
                     <KpiCard
                         title="VIP Accounts"
                         value="428"
                         description=""
+                        footer={<span className="text-base font-semibold text-slate-400">
+                            Target: 500
+                        </span>}
                         rightIcon={
                             <div className="flex items-center gap-3">
                                 <div className="rounded-lg bg-[#F2EAFE] p-3 text-[#8B5CF6]">
                                     <Crown className="h-5 w-5" />
                                 </div>
-                                <span className="text-base font-semibold text-slate-400">
-                                    Target: 500
-                                </span>
+
                             </div>
                         }
-                        className="border-l-4 border-l-[#7C6A9B]"
+
                     />
 
                     <KpiCard
                         title="New This Month"
                         value="156"
                         description=""
+                        footer={<span className="rounded-md bg-rose-50 px-3 py-1 text-sm font-semibold text-rose-500">
+                            -2%
+                        </span>}
                         rightIcon={
                             <div className="flex items-center gap-3">
                                 <div className="rounded-lg bg-[#EEF4FF] p-3 text-[#2563EB]">
                                     <Sparkles className="h-5 w-5" />
                                 </div>
-                                <span className="rounded-md bg-rose-50 px-3 py-1 text-sm font-semibold text-rose-500">
-                                    -2%
-                                </span>
+
                             </div>
                         }
-                        className="border-l-4 border-l-[#175CFF]"
+
                     />
                 </div>
 
