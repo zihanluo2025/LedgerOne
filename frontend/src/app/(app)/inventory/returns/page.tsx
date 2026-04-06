@@ -20,6 +20,7 @@ import DataTable from "@/components/common/data-table";
 import PageHeader from "@/components/common/PageHeader";
 import DataFilterBar from "@/components/common/data-filter-bar";
 import { FilterField } from "@/components/common/data-filter-bar/types";
+import { DataTableColumn } from "@/components/common/data-table/types";
 
 type ReturnType = "Customer" | "Supplier";
 type ReturnStatus = "Inspecting" | "Completed" | "Rejected";
@@ -204,7 +205,7 @@ export default function ReturnsPage() {
         return filteredData.slice(start, start + pageSize);
     }, [filteredData, currentPage]);
 
-    const columns = [
+    const columns: DataTableColumn<ReturnItem>[] = [
         {
             key: "returnNo",
             title: "Return No",

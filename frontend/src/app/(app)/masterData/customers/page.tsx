@@ -21,6 +21,7 @@ import KpiCard from "@/components/common/kpi-card";
 import DataTable from "@/components/common/data-table";
 import PageHeader from "@/components/common/PageHeader";
 import { fi } from "zod/locales";
+import { DataTableColumn } from "@/components/common/data-table/types";
 
 type CustomerStatus = "VIP" | "Active" | "New" | "Inactive";
 type CustomerSegment = "Enterprise" | "SME" | "Startup";
@@ -306,7 +307,7 @@ export default function CustomersPage() {
         },
     ];
 
-    const columns = [
+    const columns: DataTableColumn<CustomerItem>[] = [
         {
             key: "customer",
             title: "Customer",

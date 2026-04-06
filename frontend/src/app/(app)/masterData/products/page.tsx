@@ -35,6 +35,7 @@ import type {
     ProductFormValues,
 } from "@/types/product";
 import { fi } from "zod/locales";
+import { DataTableColumn } from "@/components/common/data-table/types";
 
 type DrawerMode = "create" | "edit";
 
@@ -384,7 +385,7 @@ export default function ProductsPage() {
         },
     ];
 
-    const columns = [
+    const columns: DataTableColumn<ProductViewItem>[] = [
         {
             key: "product",
             title: "Product",

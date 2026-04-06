@@ -20,6 +20,7 @@ import type { FilterField } from "@/components/common/data-filter-bar/types";
 import KpiCard from "@/components/common/kpi-card";
 import DataTable from "@/components/common/data-table";
 import PageHeader from "@/components/common/PageHeader";
+import { DataTableColumn } from "@/components/common/data-table/types";
 
 
 type SupplierStatus = "Active" | "Risk" | "Pending" | "Inactive";
@@ -303,7 +304,7 @@ export default function SuppliersPage() {
         },
     ];
 
-    const columns = [
+    const columns: DataTableColumn<SupplierItem>[] = [
         {
             key: "supplier",
             title: "Supplier",
