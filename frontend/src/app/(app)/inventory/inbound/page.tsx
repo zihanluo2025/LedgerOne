@@ -13,6 +13,7 @@ import DataFilterBar from "@/components/common/data-filter-bar";
 import type { FilterField } from "@/components/common/data-filter-bar/types";
 import KpiCard from "@/components/common/kpi-card";
 import PageHeader from "@/components/common/PageHeader";
+import { DataTableColumn } from "@/components/common/data-table/types";
 
 type InboundStatus =
     | "Completed"
@@ -163,7 +164,7 @@ export default function InboundPage() {
         },
     ];
 
-    const columns = [
+    const columns: DataTableColumn<InboundItem>[] = [
         {
             key: "id",
             title: "Inbound No",
