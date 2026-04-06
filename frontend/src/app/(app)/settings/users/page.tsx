@@ -20,6 +20,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { DataTableColumn } from "@/components/common/data-table/types";
 
 type UserRole = "Admin" | "Manager" | "Staff";
 type UserStatus = "Active" | "Pending" | "Inactive" | "Suspended";
@@ -294,7 +295,7 @@ export default function UsersPage() {
     },
   ];
 
-  const columns = [
+  const columns: DataTableColumn<UserItem>[] = [
     {
       key: "user",
       title: "User",

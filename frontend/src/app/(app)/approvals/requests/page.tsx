@@ -12,6 +12,7 @@ import type { FilterField } from "@/components/common/data-filter-bar/types";
 import KpiCard from "@/components/common/kpi-card";
 import DataTable from "@/components/common/data-table";
 import PageHeader from "@/components/common/PageHeader";
+import { DataTableColumn } from "@/components/common/data-table/types";
 
 type SubmittedItem = {
     id: string;
@@ -239,7 +240,7 @@ export default function MySubmittedRequestsPage() {
         },
     ];
 
-    const columns = [
+    const columns: DataTableColumn<SubmittedItem>[] = [
         {
             key: "docNo",
             title: "Document No",

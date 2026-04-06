@@ -10,6 +10,7 @@ import {
     Plus,
     Upload,
     XCircle,
+    Pencil, Trash2
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ import type {
     ProductFormValues,
 } from "@/types/product";
 import { fi } from "zod/locales";
+import { DataTableColumn } from "@/components/common/data-table/types";
 
 type DrawerMode = "create" | "edit";
 
@@ -383,7 +385,7 @@ export default function ProductsPage() {
         },
     ];
 
-    const columns = [
+    const columns: DataTableColumn<ProductViewItem>[] = [
         {
             key: "product",
             title: "Product",
@@ -441,29 +443,26 @@ export default function ProductsPage() {
 
                 return (
                     <div className="flex items-center gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
+
+                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg"
                             onClick={() => {
                                 if (originalProduct) {
                                     handleOpenEdit(originalProduct);
                                 }
-                            }}
-                        >
-                            Edit
+                            }}>
+                            <Pencil className="h-4 w-4" />
                         </Button>
-
                         <Button
-                            variant="outline"
-                            size="sm"
-                            className="border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                            variant="ghost"
+                            size="icon"
                             onClick={() => {
                                 if (originalProduct) {
                                     handleDelete(originalProduct);
                                 }
                             }}
+                            className="h-9 w-9 rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700"
                         >
-                            Delete
+                            <Trash2 className="h-4 w-4" />
                         </Button>
                     </div>
                 );
@@ -501,14 +500,15 @@ export default function ProductsPage() {
                         title="Total Products"
                         value={loading ? "..." : totalProducts.toString()}
                         description=""
+                        footer={<span className="py-1 text-sm font-semibold text-emerald-600">
+                            Live data
+                        </span>}
                         rightIcon={
                             <div className="flex items-center gap-3">
                                 <div className="rounded-lg bg-[#EEF4FF] p-3 text-[#5B7BEA]">
                                     <Package className="h-5 w-5" />
                                 </div>
-                                {/* <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-600">
-                                    Live data
-                                </span> */}
+
                             </div>
                         }
                     />
@@ -517,14 +517,15 @@ export default function ProductsPage() {
                         title="In Stock"
                         value={loading ? "..." : inStockCount.toString()}
                         description=""
+                        footer={<span className="py-1 text-sm font-semibold text-emerald-600">
+                            Normal
+                        </span>}
                         rightIcon={
                             <div className="flex items-center gap-3">
                                 <div className="rounded-lg bg-emerald-50 p-3 text-emerald-600">
                                     <CheckCircle2 className="h-5 w-5" />
                                 </div>
-                                {/* <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-600">
-                                    Normal
-                                </span> */}
+
                             </div>
                         }
                     />
@@ -533,14 +534,15 @@ export default function ProductsPage() {
                         title="Low Stock"
                         value={loading ? "..." : lowStockCount.toString()}
                         description=""
+                        footer={<span className="py-1 text-sm font-semibold text-orange-500">
+                            Warning status
+                        </span>}
                         rightIcon={
                             <div className="flex items-center gap-3">
                                 <div className="rounded-lg bg-orange-50 p-3 text-orange-500">
                                     <AlertTriangle className="h-5 w-5" />
                                 </div>
-                                {/* <span className="rounded-full bg-orange-50 px-3 py-1 text-sm font-semibold text-orange-500">
-                                    Warning status
-                                </span> */}
+
                             </div>
                         }
                     />
@@ -549,14 +551,15 @@ export default function ProductsPage() {
                         title="Out of Stock"
                         value={loading ? "..." : outOfStockCount.toString()}
                         description=""
+                        footer={<span className=" py-1 text-sm font-semibold text-rose-500">
+                            Critical status
+                        </span>}
                         rightIcon={
                             <div className="flex items-center gap-3">
                                 <div className="rounded-lg bg-rose-50 p-3 text-rose-500">
                                     <XCircle className="h-5 w-5" />
                                 </div>
-                                {/* <span className="rounded-full bg-rose-50 px-3 py-1 text-sm font-semibold text-rose-500">
-                                    Critical status
-                                </span> */}
+
                             </div>
                         }
                     />

@@ -26,11 +26,12 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { DataTableColumn } from "@/components/common/data-table/types";
 
 type UserRole = "Admin" | "Manager" | "Staff";
 type UserStatus = "Active" | "Pending" | "Inactive" | "Suspended";
 
-type UserItem = {
+type OrderItem = {
     id: string;
     name: string;
     email: string;
@@ -43,7 +44,7 @@ type UserItem = {
     createdAt: string;
 };
 
-const users: UserItem[] = [
+const users: OrderItem[] = [
     {
         id: "1",
         name: "Alexander Wright",
@@ -167,7 +168,7 @@ function StatusBadge({ status }: { status: UserStatus }) {
     );
 }
 
-function UserActions({ user }: { user: UserItem }) {
+function UserActions({ user }: { user: OrderItem }) {
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -300,11 +301,11 @@ export default function UsersPage() {
         },
     ];
 
-    const columns = [
+    const columns: DataTableColumn<OrderItem>[] = [
         {
             key: "user",
             title: "User",
-            render: (u: UserItem) => (
+            render: (u: OrderItem) => (
                 <div className="flex items-center gap-3">
                     <Avatar name={u.avatar} />
                     <div className="min-w-0">
@@ -317,39 +318,39 @@ export default function UsersPage() {
         {
             key: "employeeId",
             title: "ID",
-            render: (u: UserItem) => (
+            render: (u: OrderItem) => (
                 <span className="font-semibold text-[#175CFF]">{u.employeeId}</span>
             ),
         },
         {
             key: "department",
             title: "Department",
-            render: (u: UserItem) => u.department,
+            render: (u: OrderItem) => u.department,
         },
         {
             key: "role",
             title: "Role",
-            render: (u: UserItem) => <RoleBadge role={u.role} />,
+            render: (u: OrderItem) => <RoleBadge role={u.role} />,
         },
         {
             key: "status",
             title: "Status",
-            render: (u: UserItem) => <StatusBadge status={u.status} />,
+            render: (u: OrderItem) => <StatusBadge status={u.status} />,
         },
         {
             key: "lastLogin",
             title: "Last Login",
-            render: (u: UserItem) => u.lastLogin,
+            render: (u: OrderItem) => u.lastLogin,
         },
         {
             key: "createdAt",
             title: "Created At",
-            render: (u: UserItem) => u.createdAt,
+            render: (u: OrderItem) => u.createdAt,
         },
         {
             key: "actions",
             title: "Actions",
-            render: (u: UserItem) => <UserActions user={u} />,
+            render: (u: OrderItem) => <UserActions user={u} />,
         },
     ];
 
@@ -383,9 +384,9 @@ export default function UsersPage() {
                         onClick: () => console.log("Export clicked")
                     },
                     {
-                        label: "Add User",
+                        label: "Add Order",
                         icon: <Plus size={22} strokeWidth={2.2} />,
-                        onClick: () => console.log("Add User clicked")
+                        onClick: () => console.log("Add Order clicked")
                     },
                 ]}
             />
@@ -433,7 +434,7 @@ export default function UsersPage() {
             <DataTable
                 data={paged}
                 columns={columns}
-                rowKey={(u: UserItem) => u.id}
+                rowKey={(u: OrderItem) => u.id}
                 pagination={{
                     currentPage,
                     totalPages,
