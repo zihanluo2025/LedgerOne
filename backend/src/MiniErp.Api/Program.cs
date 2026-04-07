@@ -3,6 +3,7 @@ using MiniErp.Application.Products;
 using MiniErp.Application.Users;
 using MiniErp.Application.Suppliers;
 using MiniErp.Application.Customers;
+using MiniErp.Application.Inbounds;
 
 using MiniErp.Domain.Auth;
 using MiniErp.Infrastructure.Common;
@@ -10,6 +11,7 @@ using MiniErp.Infrastructure.Products;
 using MiniErp.Infrastructure.Users;
 using MiniErp.Infrastructure.Suppliers;
 using MiniErp.Infrastructure.Customers;
+using MiniErp.Infrastructure.Inbounds;
 
 using Amazon.DynamoDBv2;
 // using Amazon.Lambda.AspNetCoreServer.Hosting;
@@ -29,10 +31,14 @@ builder.Services.AddControllers();
 builder.Services.AddScoped<SupplierService>();
 builder.Services.AddScoped<ProductService>();
 builder.Services.AddScoped<CustomerService>();
+builder.Services.AddScoped<InboundService>();
 
 builder.Services.AddScoped<ISupplierRepository, SupplierRepository>();
 builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 builder.Services.AddScoped<IUserDirectory, CognitoUserDirectory>();
+
+builder.Services.AddScoped<IInboundRepository, InboundRepository>();
+
 
 
 builder.Services.ConfigureHttpJsonOptions(options =>
