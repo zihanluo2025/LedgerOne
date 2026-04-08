@@ -1,16 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
     Download,
     Plus,
     RefreshCw,
-    MoreHorizontal,
-    Users,
-    UserCheck,
-    ShieldCheck,
-    Mail,
-    Upload,
+    ShoppingCart,
+    Truck,
+    PackageCheck,
+    CheckCircle2,
+    Pencil,
+    Trash2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -19,430 +19,498 @@ import type { FilterField } from "@/components/common/data-filter-bar/types";
 import KpiCard from "@/components/common/kpi-card";
 import DataTable from "@/components/common/data-table";
 import PageHeader from "@/components/common/PageHeader";
+import type { DataTableColumn } from "@/components/common/data-table/types";
+
+import OrderDrawer, {
+    type OrderFormValues,
+} from "./_components/OrderDrawer";
+import { useConfirm } from "@/hooks/use-confirm";
+
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { DataTableColumn } from "@/components/common/data-table/types";
-
-type UserRole = "Admin" | "Manager" | "Staff";
-type UserStatus = "Active" | "Pending" | "Inactive" | "Suspended";
-
-type OrderItem = {
-    id: string;
-    name: string;
-    email: string;
-    avatar: string;
-    employeeId: string;
-    department: string;
-    role: UserRole;
-    status: UserStatus;
-    lastLogin: string;
-    createdAt: string;
-};
-
-const users: OrderItem[] = [
-    {
-        id: "1",
-        name: "Alexander Wright",
-        email: "alex.wright@executive.com",
-        avatar: "AW",
-        employeeId: "#ERP-20941",
-        department: "Finance",
-        role: "Admin",
-        status: "Active",
-        lastLogin: "2 mins ago",
-        createdAt: "Oct 24, 2023",
-    },
-    {
-        id: "2",
-        name: "Sarah Jenkins",
-        email: "s.jenkins@executive.com",
-        avatar: "SJ",
-        employeeId: "#ERP-21002",
-        department: "Sales",
-        role: "Manager",
-        status: "Pending",
-        lastLogin: "Never",
-        createdAt: "Nov 12, 2023",
-    },
-    {
-        id: "3",
-        name: "Michael Chen",
-        email: "m.chen@executive.com",
-        avatar: "MC",
-        employeeId: "#ERP-20855",
-        department: "Operations",
-        role: "Staff",
-        status: "Inactive",
-        lastLogin: "15 days ago",
-        createdAt: "Sep 05, 2023",
-    },
-    {
-        id: "4",
-        name: "Eleanor Young",
-        email: "e.young@executive.com",
-        avatar: "EY",
-        employeeId: "#ERP-21116",
-        department: "HR",
-        role: "Manager",
-        status: "Active",
-        lastLogin: "30+ days ago",
-        createdAt: "May 19, 2023",
-    },
-    {
-        id: "5",
-        name: "Daniel Foster",
-        email: "d.foster@executive.com",
-        avatar: "DF",
-        employeeId: "#ERP-20710",
-        department: "Inventory",
-        role: "Staff",
-        status: "Suspended",
-        lastLogin: "7 days ago",
-        createdAt: "Mar 08, 2023",
-    },
-    {
-        id: "6",
-        name: "Olivia Brown",
-        email: "o.brown@executive.com",
-        avatar: "OB",
-        employeeId: "#ERP-21088",
-        department: "Finance",
-        role: "Staff",
-        status: "Active",
-        lastLogin: "1 hour ago",
-        createdAt: "Jan 16, 2024",
-    },
-];
+    createOrder,
+    deleteOrder,
+    listOrders,
+    updateOrder,
+} from "@/lib/apis/orders";
+import type { OrderRecord, OrderStatus } from "@/types/order";
 
 function cn(...classes: Array<string | false | undefined>) {
     return classes.filter(Boolean).join(" ");
 }
 
-function Avatar({ name }: { name: string }) {
-    return (
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-sm font-bold text-slate-600">
-            {name}
-        </div>
-    );
+function normalizeValue(value?: string | null) {
+    return (value ?? "").toLowerCase().trim().replace(/\s+/g, "-");
 }
 
-function RoleBadge({ role }: { role: UserRole }) {
-    const map: Record<UserRole, string> = {
-        Admin: "bg-blue-50 text-blue-600",
-        Manager: "bg-violet-50 text-violet-600",
-        Staff: "bg-slate-100 text-slate-600",
+function formatOrderDate(iso: string) {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+    });
+}
+
+function formatMoney(amount: number, currency: string) {
+    try {
+        return new Intl.NumberFormat(undefined, {
+            style: "currency",
+            currency: currency.length === 3 ? currency : "USD",
+            minimumFractionDigits: 2,
+        }).format(amount);
+    } catch {
+        return `${currency} ${amount.toFixed(2)}`;
+    }
+}
+
+function StatusBadge({ status }: { status: OrderStatus }) {
+    const classMap: Record<OrderStatus, string> = {
+        Draft: "border-slate-200 bg-slate-100 text-slate-600",
+        Confirmed: "border-blue-200 bg-blue-50 text-blue-700",
+        Processing: "border-violet-200 bg-violet-50 text-violet-700",
+        Shipped: "border-amber-200 bg-amber-50 text-amber-800",
+        Delivered: "border-emerald-200 bg-emerald-50 text-emerald-700",
+        Cancelled: "border-rose-200 bg-rose-50 text-rose-700",
+    };
+
+    const dotMap: Record<OrderStatus, string> = {
+        Draft: "bg-slate-400",
+        Confirmed: "bg-blue-500",
+        Processing: "bg-violet-500",
+        Shipped: "bg-amber-500",
+        Delivered: "bg-emerald-500",
+        Cancelled: "bg-rose-500",
     };
 
     return (
-        <span className={cn("rounded px-2 py-1 text-xs font-semibold uppercase", map[role])}>
-            {role}
+        <span
+            className={cn(
+                "inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-bold uppercase tracking-[0.04em]",
+                classMap[status]
+            )}
+        >
+            <span className={cn("h-2 w-2 rounded-full", dotMap[status])} />
+            {status}
         </span>
     );
 }
 
-function StatusBadge({ status }: { status: UserStatus }) {
-    const map: Record<UserStatus, string> = {
-        Active: "text-emerald-600",
-        Pending: "text-orange-500",
-        Inactive: "text-slate-500",
-        Suspended: "text-rose-600",
-    };
-
-    const dotMap: Record<UserStatus, string> = {
-        Active: "bg-emerald-500",
-        Pending: "bg-orange-400",
-        Inactive: "bg-slate-400",
-        Suspended: "bg-rose-500",
-    };
-
-    return (
-        <div className={cn("flex items-center gap-2 text-sm font-medium", map[status])}>
-            <span className={cn("h-2 w-2 rounded-full", dotMap[status])} />
-            <span>{status}</span>
-        </div>
-    );
-}
-
-function UserActions({ user }: { user: OrderItem }) {
-    return (
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
-                    <MoreHorizontal className="h-4 w-4" />
-                </Button>
-            </DropdownMenuTrigger>
-
-            <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuItem>View Details</DropdownMenuItem>
-                <DropdownMenuItem>Edit User</DropdownMenuItem>
-                <DropdownMenuItem>Reset Password</DropdownMenuItem>
-
-                <DropdownMenuSeparator />
-
-                {user.status === "Inactive" || user.status === "Suspended" ? (
-                    <DropdownMenuItem>Enable User</DropdownMenuItem>
-                ) : (
-                    <DropdownMenuItem>Disable User</DropdownMenuItem>
-                )}
-
-                {user.status === "Pending" ? (
-                    <DropdownMenuItem>Resend Invite</DropdownMenuItem>
-                ) : null}
-
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-rose-600 focus:text-rose-600">
-                    Delete User
-                </DropdownMenuItem>
-            </DropdownMenuContent>
-        </DropdownMenu>
-    );
-}
-
-export default function UsersPage() {
+export default function OrdersPage() {
+    const { confirm } = useConfirm();
     const [search, setSearch] = useState("");
-    const [role, setRole] = useState("all");
-    const [status, setStatus] = useState("all");
-    const [department, setDepartment] = useState("all");
+    const [statusFilter, setStatusFilter] = useState("all");
     const [currentPage, setCurrentPage] = useState(1);
+    const [items, setItems] = useState<OrderRecord[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const [drawerOpen, setDrawerOpen] = useState(false);
+    const [drawerMode, setDrawerMode] = useState<"create" | "edit">("create");
+    const [drawerRecord, setDrawerRecord] = useState<OrderRecord | null>(null);
 
     const pageSize = 6;
 
-    const filtered = useMemo(() => {
-        const keyword = search.toLowerCase();
+    const loadData = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await listOrders({ limit: 500 });
+            setItems(res.items);
+        } catch (e) {
+            setError(
+                e instanceof Error ? e.message : "Failed to load sales orders."
+            );
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
-        return users.filter((u) => {
-            const matchesKeyword =
-                u.name.toLowerCase().includes(keyword) ||
-                u.email.toLowerCase().includes(keyword) ||
-                u.employeeId.toLowerCase().includes(keyword);
+    useEffect(() => {
+        void loadData();
+    }, [loadData]);
 
-            const matchesRole = role === "all" || u.role.toLowerCase() === role;
-            const matchesStatus = status === "all" || u.status.toLowerCase() === status;
-            const matchesDepartment =
-                department === "all" || u.department.toLowerCase() === department;
+    const filteredData = useMemo(() => {
+        const keyword = search.trim().toLowerCase();
 
-            return matchesKeyword && matchesRole && matchesStatus && matchesDepartment;
+        return items.filter((item) => {
+            const matchKeyword =
+                !keyword ||
+                item.orderNo.toLowerCase().includes(keyword) ||
+                item.customerName.toLowerCase().includes(keyword) ||
+                (item.notes ?? "").toLowerCase().includes(keyword);
+
+            const matchStatus =
+                statusFilter === "all" ||
+                normalizeValue(item.status) === statusFilter;
+
+            return matchKeyword && matchStatus;
         });
-    }, [search, role, status, department]);
+    }, [items, search, statusFilter]);
 
-    const totalPages = Math.ceil(filtered.length / pageSize);
+    const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
 
-    const paged = filtered.slice(
-        (currentPage - 1) * pageSize,
-        currentPage * pageSize
-    );
+    const pagedData = useMemo(() => {
+        const start = (currentPage - 1) * pageSize;
+        return filteredData.slice(start, start + pageSize);
+    }, [filteredData, currentPage]);
+
+    useEffect(() => {
+        if (currentPage > totalPages) {
+            setCurrentPage(1);
+        }
+    }, [currentPage, totalPages]);
+
+    const kpi = useMemo(() => {
+        const total = items.length;
+        const pipeline = items.filter((o) =>
+            ["Draft", "Confirmed", "Processing"].includes(o.status)
+        ).length;
+        const shipped = items.filter((o) => o.status === "Shipped").length;
+        const delivered = items.filter((o) => o.status === "Delivered").length;
+
+        return {
+            total: String(total),
+            pipeline: String(pipeline),
+            shipped: String(shipped),
+            delivered: String(delivered),
+        };
+    }, [items]);
 
     const filterFields: FilterField[] = [
         {
             key: "search",
             type: "search",
             value: search,
-            placeholder: "Search name, email, employee ID...",
             onChange: (value) => {
                 setSearch(value);
                 setCurrentPage(1);
             },
-        },
-        {
-            key: "role",
-            type: "select",
-            label: "Role",
-            value: role,
-            onChange: (value) => {
-                setRole(value);
-                setCurrentPage(1);
-            },
-            options: [
-                { label: "All Roles", value: "all" },
-                { label: "Admin", value: "admin" },
-                { label: "Manager", value: "manager" },
-                { label: "Staff", value: "staff" },
-            ],
+            placeholder: "Search order no, customer, notes...",
         },
         {
             key: "status",
             type: "select",
-            label: "Status",
-            value: status,
+            label: "",
+            value: statusFilter,
             onChange: (value) => {
-                setStatus(value);
+                setStatusFilter(value);
                 setCurrentPage(1);
             },
             options: [
-                { label: "All Status", value: "all" },
-                { label: "Active", value: "active" },
-                { label: "Pending", value: "pending" },
-                { label: "Inactive", value: "inactive" },
-                { label: "Suspended", value: "suspended" },
-            ],
-        },
-        {
-            key: "department",
-            type: "select",
-            label: "Department",
-            value: department,
-            onChange: (value) => {
-                setDepartment(value);
-                setCurrentPage(1);
-            },
-            options: [
-                { label: "All Departments", value: "all" },
-                { label: "Finance", value: "finance" },
-                { label: "Sales", value: "sales" },
-                { label: "Operations", value: "operations" },
-                { label: "HR", value: "hr" },
-                { label: "Inventory", value: "inventory" },
+                { label: "All status", value: "all" },
+                { label: "Draft", value: "draft" },
+                { label: "Confirmed", value: "confirmed" },
+                { label: "Processing", value: "processing" },
+                { label: "Shipped", value: "shipped" },
+                { label: "Delivered", value: "delivered" },
+                { label: "Cancelled", value: "cancelled" },
             ],
         },
     ];
 
-    const columns: DataTableColumn<OrderItem>[] = [
+    function openCreate() {
+        setDrawerMode("create");
+        setDrawerRecord(null);
+        setDrawerOpen(true);
+    }
+
+    function openEdit(row: OrderRecord) {
+        setDrawerMode("edit");
+        setDrawerRecord(row);
+        setDrawerOpen(true);
+    }
+
+    function closeDrawer() {
+        setDrawerOpen(false);
+        setDrawerRecord(null);
+    }
+
+    async function handleDrawerSubmit(values: OrderFormValues) {
+        setError(null);
+        const orderDateIso = `${values.orderDate}T00:00:00.000Z`;
+        try {
+            if (drawerMode === "create") {
+                await createOrder({
+                    customerName: values.customerName,
+                    orderDate: orderDateIso,
+                    status: values.status,
+                    currency: values.currency,
+                    totalAmount: Number(values.totalAmount),
+                    notes: values.notes || null,
+                });
+            } else if (drawerRecord) {
+                await updateOrder(drawerRecord.id, {
+                    customerName: values.customerName,
+                    orderDate: orderDateIso,
+                    status: values.status,
+                    currency: values.currency,
+                    totalAmount: Number(values.totalAmount),
+                    notes: values.notes || null,
+                });
+            }
+            await loadData();
+        } catch (err) {
+            const message =
+                err instanceof Error
+                    ? err.message
+                    : drawerMode === "create"
+                      ? "Failed to create order."
+                      : "Failed to update order.";
+            setError(message);
+            throw err;
+        }
+    }
+
+    async function handleDelete(row: OrderRecord) {
+        const ok = await confirm({
+            title: "Delete order?",
+            description: `This action will permanently delete order "${row.orderNo}" for ${row.customerName}. This cannot be undone.`,
+            confirmText: "Delete",
+            cancelText: "Cancel",
+            variant: "destructive",
+        });
+        if (!ok) return;
+
+        setError(null);
+        try {
+            await deleteOrder(row.id);
+            await loadData();
+        } catch (err) {
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : "Failed to delete order."
+            );
+        }
+    }
+
+    const columns: DataTableColumn<OrderRecord>[] = [
         {
-            key: "user",
-            title: "User",
-            render: (u: OrderItem) => (
-                <div className="flex items-center gap-3">
-                    <Avatar name={u.avatar} />
-                    <div className="min-w-0">
-                        <p className="truncate font-semibold text-slate-900">{u.name}</p>
-                        <p className="truncate text-sm text-[#175CFF]">{u.email}</p>
-                    </div>
-                </div>
+            key: "orderNo",
+            title: "Order No",
+            render: (item: OrderRecord) => (
+                <button
+                    type="button"
+                    className="text-left text-[16px] font-bold leading-6 text-[#175CFF] hover:underline"
+                >
+                    #{item.orderNo}
+                </button>
             ),
         },
         {
-            key: "employeeId",
-            title: "ID",
-            render: (u: OrderItem) => (
-                <span className="font-semibold text-[#175CFF]">{u.employeeId}</span>
+            key: "customer",
+            title: "Customer",
+            className: "font-semibold text-[#183B6B]",
+            render: (item: OrderRecord) => item.customerName,
+        },
+        {
+            key: "orderDate",
+            title: "Order date",
+            className: "text-[14px] font-medium text-[#5A6B86]",
+            render: (item: OrderRecord) => formatOrderDate(item.orderDate),
+        },
+        {
+            key: "total",
+            title: "Total",
+            render: (item: OrderRecord) => (
+                <span className="tabular-nums font-semibold text-[#183B6B]">
+                    {formatMoney(item.totalAmount, item.currency)}
+                </span>
             ),
-        },
-        {
-            key: "department",
-            title: "Department",
-            render: (u: OrderItem) => u.department,
-        },
-        {
-            key: "role",
-            title: "Role",
-            render: (u: OrderItem) => <RoleBadge role={u.role} />,
         },
         {
             key: "status",
             title: "Status",
-            render: (u: OrderItem) => <StatusBadge status={u.status} />,
-        },
-        {
-            key: "lastLogin",
-            title: "Last Login",
-            render: (u: OrderItem) => u.lastLogin,
-        },
-        {
-            key: "createdAt",
-            title: "Created At",
-            render: (u: OrderItem) => u.createdAt,
+            render: (item: OrderRecord) => <StatusBadge status={item.status} />,
         },
         {
             key: "actions",
             title: "Actions",
-            render: (u: OrderItem) => <UserActions user={u} />,
+            render: (item: OrderRecord) => (
+                <div className="flex items-center gap-2">
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-lg"
+                        onClick={() => openEdit(item)}
+                        aria-label={`Edit order ${item.orderNo}`}
+                    >
+                        <Pencil className="h-4 w-4" />
+                    </Button>
+
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700"
+                        onClick={() => void handleDelete(item)}
+                        aria-label={`Delete order ${item.orderNo}`}
+                    >
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                </div>
+            ),
         },
     ];
 
-    const totalUsers = users.length;
-    const activeUsers = users.filter((u) => u.status === "Active").length;
-    const adminUsers = users.filter((u) => u.role === "Admin").length;
-    const pendingInvitations = users.filter((u) => u.status === "Pending").length;
-
-    const resetFilters = () => {
-        setSearch("");
-        setRole("all");
-        setStatus("all");
-        setDepartment("all");
-        setCurrentPage(1);
-    };
-
     return (
-        <div className="min-h-screen space-y-6 bg-[#F6F8FC]">
-            <PageHeader
-                title="Users"
-                description="Manage user accounts, roles, status and access permissions."
-                actions={[
-                    {
-                        label: "Import",
-                        icon: <Upload size={22} strokeWidth={2.2} />,
-                        onClick: () => console.log("Import clicked")
-                    },
-                    {
-                        label: "Export",
-                        icon: <Download size={22} strokeWidth={2.2} />,
-                        onClick: () => console.log("Export clicked")
-                    },
-                    {
-                        label: "Add Order",
-                        icon: <Plus size={22} strokeWidth={2.2} />,
-                        onClick: () => console.log("Add Order clicked")
-                    },
-                ]}
-            />
+        <div className="min-h-screen bg-[#F6F8FC]">
+            <div className="mx-auto w-full max-w-[1440px] space-y-6">
+                <PageHeader
+                    title="Sales Orders"
+                    description="Create and manage customer sales orders, amounts and fulfilment status."
+                    actions={[
+                        {
+                            label: "Export",
+                            icon: <Download size={22} strokeWidth={2.2} />,
+                            onClick: () => {
+                                const blob = new Blob(
+                                    [JSON.stringify(filteredData, null, 2)],
+                                    { type: "application/json" }
+                                );
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement("a");
+                                a.href = url;
+                                a.download = "sales-orders-export.json";
+                                a.click();
+                                URL.revokeObjectURL(url);
+                            },
+                        },
+                        {
+                            label: "Create Order",
+                            icon: <Plus size={22} strokeWidth={2.2} />,
+                            onClick: openCreate,
+                        },
+                    ]}
+                />
 
-            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-                <KpiCard
-                    title="Total Users"
-                    value={totalUsers.toLocaleString()}
-                    icon={<Users className="h-5 w-5 text-blue-600" />}
-                    trend={{ value: "+12% from last month", positive: true }}
+                <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+                    <KpiCard
+                        title="Total Orders"
+                        value={loading ? "..." : kpi.total}
+                        description=""
+                        footer={
+                            <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-600">
+                                All time
+                            </span>
+                        }
+                        rightIcon={
+                            <div className="rounded-lg bg-[#EEF4FF] p-3 text-[#2563EB]">
+                                <ShoppingCart className="h-5 w-5" />
+                            </div>
+                        }
+                    />
+
+                    <KpiCard
+                        title="In pipeline"
+                        value={loading ? "..." : kpi.pipeline}
+                        description=""
+                        footer={
+                            <span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700">
+                                Draft · Confirmed · Processing
+                            </span>
+                        }
+                        rightIcon={
+                            <div className="rounded-lg bg-[#F2EAFE] p-3 text-[#6E56A8]">
+                                <PackageCheck className="h-5 w-5" />
+                            </div>
+                        }
+                    />
+
+                    <KpiCard
+                        title="Shipped"
+                        value={loading ? "..." : kpi.shipped}
+                        description=""
+                        footer={
+                            <span className="rounded-full bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-800">
+                                In transit
+                            </span>
+                        }
+                        rightIcon={
+                            <div className="rounded-lg bg-orange-50 p-3 text-orange-500">
+                                <Truck className="h-5 w-5" />
+                            </div>
+                        }
+                    />
+
+                    <KpiCard
+                        title="Delivered"
+                        value={loading ? "..." : kpi.delivered}
+                        description=""
+                        footer={
+                            <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700">
+                                Closed
+                            </span>
+                        }
+                        rightIcon={
+                            <div className="rounded-lg bg-[#EEF4FF] p-3 text-[#0B3A6E]">
+                                <CheckCircle2 className="h-5 w-5" />
+                            </div>
+                        }
+                    />
+                </div>
+
+                <DataFilterBar
+                    fields={filterFields}
+                    actionSlot={
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-12 w-12 rounded-xl bg-[#EAF1FF] text-[#5B7BEA] hover:bg-[#DFE9FF]"
+                            onClick={() => void loadData()}
+                            disabled={loading}
+                            aria-label="Refresh from server"
+                        >
+                            <RefreshCw
+                                className={cn("h-5 w-5", loading && "animate-spin")}
+                            />
+                        </Button>
+                    }
                 />
-                <KpiCard
-                    title="Active Users"
-                    value={activeUsers.toLocaleString()}
-                    icon={<UserCheck className="h-5 w-5 text-emerald-600" />}
-                    description={`${((activeUsers / totalUsers) * 100).toFixed(1)}% of total directory`}
-                />
-                <KpiCard
-                    title="Admins"
-                    value={adminUsers.toLocaleString()}
-                    icon={<ShieldCheck className="h-5 w-5 text-indigo-600" />}
-                    description="Privileged access accounts"
-                />
-                <KpiCard
-                    title="Pending Invitations"
-                    value={pendingInvitations.toLocaleString()}
-                    icon={<Mail className="h-5 w-5 text-orange-500" />}
-                    description="Requires action"
+
+                {error && (
+                    <div
+                        className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+                        role="alert"
+                    >
+                        {error}
+                    </div>
+                )}
+
+                <DataTable
+                    data={pagedData}
+                    columns={columns}
+                    rowKey={(row: OrderRecord) => row.id}
+                    selectable={false}
+                    emptyText={
+                        loading
+                            ? "Loading orders…"
+                            : "No sales orders found"
+                    }
+                    footerLeft={`Showing ${filteredData.length === 0 ? 0 : (currentPage - 1) * pageSize + 1
+                        } to ${Math.min(
+                            currentPage * pageSize,
+                            filteredData.length
+                        )} of ${filteredData.length} orders`}
+                    pagination={{
+                        currentPage,
+                        totalPages,
+                        totalItems: filteredData.length,
+                        pageSize,
+                        onPageChange: setCurrentPage,
+                    }}
                 />
             </div>
 
-            <DataFilterBar
-                fields={filterFields}
-                actionSlot={
-                    <Button
-                        variant="ghost"
-                        className="text-[#175CFF] hover:bg-blue-50 hover:text-[#175CFF]"
-                        onClick={resetFilters}
-                    >
-                        Reset
-                    </Button>
-                }
-            />
-
-            <DataTable
-                data={paged}
-                columns={columns}
-                rowKey={(u: OrderItem) => u.id}
-                pagination={{
-                    currentPage,
-                    totalPages,
-                    totalItems: filtered.length,
-                    pageSize,
-                    onPageChange: setCurrentPage,
-                }}
-                selectable
+            <OrderDrawer
+                open={drawerOpen}
+                mode={drawerMode}
+                initialData={drawerMode === "edit" ? drawerRecord : null}
+                onClose={closeDrawer}
+                onSubmit={handleDrawerSubmit}
             />
         </div>
     );

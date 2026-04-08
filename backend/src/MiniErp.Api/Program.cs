@@ -4,6 +4,8 @@ using MiniErp.Application.Users;
 using MiniErp.Application.Suppliers;
 using MiniErp.Application.Customers;
 using MiniErp.Application.Inbounds;
+using MiniErp.Application.Returns;
+using MiniErp.Application.Orders;
 
 using MiniErp.Domain.Auth;
 using MiniErp.Infrastructure.Common;
@@ -12,6 +14,8 @@ using MiniErp.Infrastructure.Users;
 using MiniErp.Infrastructure.Suppliers;
 using MiniErp.Infrastructure.Customers;
 using MiniErp.Infrastructure.Inbounds;
+using MiniErp.Infrastructure.Returns;
+using MiniErp.Infrastructure.Orders;
 
 using Amazon.DynamoDBv2;
 // using Amazon.Lambda.AspNetCoreServer.Hosting;
@@ -27,17 +31,25 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddAWSLambdaHosting(LambdaEventSource.HttpApi);
 
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(options =>
+{
+    // Match ConfigureHttpJsonOptions: MVC controllers deserialize enums as strings (e.g. "Customer").
+    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 builder.Services.AddScoped<SupplierService>();
 builder.Services.AddScoped<ProductService>();
 builder.Services.AddScoped<CustomerService>();
 builder.Services.AddScoped<InboundService>();
+builder.Services.AddScoped<ReturnService>();
+builder.Services.AddScoped<OrderService>();
 
 builder.Services.AddScoped<ISupplierRepository, SupplierRepository>();
 builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 builder.Services.AddScoped<IUserDirectory, CognitoUserDirectory>();
 
 builder.Services.AddScoped<IInboundRepository, InboundRepository>();
+builder.Services.AddScoped<IReturnRepository, ReturnRepository>();
+builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 
 
 

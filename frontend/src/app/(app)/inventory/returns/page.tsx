@@ -1,20 +1,20 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
     Ban,
-    CalendarDays,
     Download,
     Plus,
     RotateCcw,
-    Search,
     ClipboardCheck,
     AlertTriangle,
-    MoreVertical,
     RefreshCw,
+    Pencil,
+    Trash2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+
 import KpiCard from "@/components/common/kpi-card";
 import DataTable from "@/components/common/data-table";
 import PageHeader from "@/components/common/PageHeader";
@@ -22,94 +22,41 @@ import DataFilterBar from "@/components/common/data-filter-bar";
 import { FilterField } from "@/components/common/data-filter-bar/types";
 import { DataTableColumn } from "@/components/common/data-table/types";
 
-type ReturnType = "Customer" | "Supplier";
-type ReturnStatus = "Inspecting" | "Completed" | "Rejected";
-
-type ReturnItem = {
-    id: string;
-    returnNo: string;
-    type: ReturnType;
-    partnerName: string;
-    partnerRole: string;
-    partnerInitials: string;
-    productName: string;
-    productMeta: string;
-    qty: number;
-    requestedAt: string;
-    status: ReturnStatus;
-};
-
-const returnData: ReturnItem[] = [
-    {
-        id: "1",
-        returnNo: "RET-2023-4412",
-        type: "Customer",
-        partnerName: "Johnathan Doe",
-        partnerRole: "Retail Channel",
-        partnerInitials: "JD",
-        productName: "Quantum Pro Headphone",
-        productMeta: "Serial: #QN-88219",
-        qty: 1,
-        requestedAt: "24 Oct, 09:45 AM",
-        status: "Inspecting",
-    },
-    {
-        id: "2",
-        returnNo: "RET-2023-4410",
-        type: "Supplier",
-        partnerName: "Astro Logistics Ltd.",
-        partnerRole: "Core Supplier",
-        partnerInitials: "AL",
-        productName: "Mainboard X-200 Chipsets",
-        productMeta: "Bulk Lot #A-22",
-        qty: 450,
-        requestedAt: "22 Oct, 03:20 PM",
-        status: "Completed",
-    },
-    {
-        id: "3",
-        returnNo: "RET-2023-4398",
-        type: "Customer",
-        partnerName: "Sarah Miller",
-        partnerRole: "Private Client",
-        partnerInitials: "SM",
-        productName: "Titan Mesh Chair (Black)",
-        productMeta: "SKU: TM-420-B",
-        qty: 1,
-        requestedAt: "20 Oct, 11:15 AM",
-        status: "Rejected",
-    },
-    {
-        id: "4",
-        returnNo: "RET-2023-4386",
-        type: "Supplier",
-        partnerName: "Northline Components",
-        partnerRole: "Electronics Vendor",
-        partnerInitials: "NC",
-        productName: "Sensor Module Batch",
-        productMeta: "PO Ref: SUP-1192",
-        qty: 120,
-        requestedAt: "18 Oct, 02:00 PM",
-        status: "Inspecting",
-    },
-];
+import {
+    createReturn,
+    deleteReturn,
+    listReturns,
+    updateReturn,
+} from "@/lib/apis/returns";
+import type { ReturnRecord, ReturnStatus } from "@/types/return";
+import ReturnDrawer, {
+    type ReturnFormValues,
+} from "./_components/ReturnDrawer";
+import { useConfirm } from "@/hooks/use-confirm";
 
 function cn(...classes: Array<string | false | undefined>) {
     return classes.filter(Boolean).join(" ");
 }
 
-
-
-
+function formatRequestedAt(iso: string) {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleString(undefined, {
+        day: "2-digit",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
+}
 
 function ReturnStatusBadge({ status }: { status: ReturnStatus }) {
-    const classMap = {
+    const classMap: Record<ReturnStatus, string> = {
         Inspecting: "border-orange-200 bg-orange-50 text-orange-600",
         Completed: "border-emerald-200 bg-emerald-50 text-emerald-600",
         Rejected: "border-rose-200 bg-rose-50 text-rose-600",
     };
 
-    const dotMap = {
+    const dotMap: Record<ReturnStatus, string> = {
         Inspecting: "bg-orange-500",
         Completed: "bg-emerald-500",
         Rejected: "bg-rose-500",
@@ -128,7 +75,7 @@ function ReturnStatusBadge({ status }: { status: ReturnStatus }) {
     );
 }
 
-function PartnerCell({ item }: { item: ReturnItem }) {
+function PartnerCell({ item }: { item: ReturnRecord }) {
     return (
         <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-500">
@@ -145,7 +92,7 @@ function PartnerCell({ item }: { item: ReturnItem }) {
     );
 }
 
-function ProductCell({ item }: { item: ReturnItem }) {
+function ProductCell({ item }: { item: ReturnRecord }) {
     return (
         <div>
             <div className="text-[15px] font-semibold leading-6 text-[#183B6B]">
@@ -156,34 +103,76 @@ function ProductCell({ item }: { item: ReturnItem }) {
     );
 }
 
-function ActionCell() {
-    return (
-        <button className="text-slate-400 transition hover:text-[#175CFF]">
-            <MoreVertical className="h-5 w-5" />
-        </button>
-    );
-}
-
-
-
 export default function ReturnsPage() {
+    const { confirm } = useConfirm();
     const [search, setSearch] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
+    const [items, setItems] = useState<ReturnRecord[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const [drawerOpen, setDrawerOpen] = useState(false);
+    const [drawerMode, setDrawerMode] = useState<"create" | "edit">("create");
+    const [drawerRecord, setDrawerRecord] = useState<ReturnRecord | null>(
+        null
+    );
 
     const pageSize = 4;
+
+    const loadData = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await listReturns({ limit: 500 });
+            setItems(res.items);
+        } catch (e) {
+            setError(
+                e instanceof Error ? e.message : "Failed to load return records."
+            );
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        void loadData();
+    }, [loadData]);
 
     const filteredData = useMemo(() => {
         const keyword = search.trim().toLowerCase();
 
-        if (!keyword) return returnData;
+        if (!keyword) return items;
 
-        return returnData.filter(
+        return items.filter(
             (item) =>
                 item.returnNo.toLowerCase().includes(keyword) ||
                 item.productName.toLowerCase().includes(keyword) ||
-                item.partnerName.toLowerCase().includes(keyword)
+                item.partnerName.toLowerCase().includes(keyword) ||
+                item.productMeta.toLowerCase().includes(keyword)
         );
-    }, [search]);
+    }, [items, search]);
+
+    const kpi = useMemo(() => {
+        const now = new Date();
+        const thisMonth = items.filter((r) => {
+            const d = new Date(r.requestedAt);
+            return (
+                d.getFullYear() === now.getFullYear() &&
+                d.getMonth() === now.getMonth()
+            );
+        }).length;
+
+        const inspecting = items.filter((r) => r.status === "Inspecting").length;
+        const completed = items.filter((r) => r.status === "Completed").length;
+        const rejected = items.filter((r) => r.status === "Rejected").length;
+
+        return {
+            thisMonth: String(thisMonth),
+            inspecting: String(inspecting),
+            completed: String(completed),
+            rejected: String(rejected),
+        };
+    }, [items]);
 
     const filterFields: FilterField[] = [
         {
@@ -194,8 +183,8 @@ export default function ReturnsPage() {
                 setSearch(value);
                 setCurrentPage(1);
             },
-            placeholder: "Filter by Name, Company or ID...",
-        }
+            placeholder: "Filter by name, product or return no...",
+        },
     ];
 
     const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
@@ -205,169 +194,302 @@ export default function ReturnsPage() {
         return filteredData.slice(start, start + pageSize);
     }, [filteredData, currentPage]);
 
-    const columns: DataTableColumn<ReturnItem>[] = [
+    function openCreate() {
+        setDrawerMode("create");
+        setDrawerRecord(null);
+        setDrawerOpen(true);
+    }
+
+    function openEdit(row: ReturnRecord) {
+        setDrawerMode("edit");
+        setDrawerRecord(row);
+        setDrawerOpen(true);
+    }
+
+    function closeDrawer() {
+        setDrawerOpen(false);
+        setDrawerRecord(null);
+    }
+
+    async function handleDrawerSubmit(values: ReturnFormValues) {
+        setError(null);
+        try {
+            if (drawerMode === "create") {
+                await createReturn({
+                    type: values.type,
+                    partnerName: values.partnerName,
+                    partnerRole: values.partnerRole,
+                    productName: values.productName,
+                    productMeta: values.productMeta,
+                    qty: values.qty,
+                    status: values.status,
+                });
+            } else if (drawerRecord) {
+                await updateReturn(drawerRecord.id, values);
+            }
+            await loadData();
+        } catch (err) {
+            const message =
+                err instanceof Error
+                    ? err.message
+                    : drawerMode === "create"
+                      ? "Failed to create return record."
+                      : "Failed to update return record.";
+            setError(message);
+            throw err;
+        }
+    }
+
+    async function handleDelete(row: ReturnRecord) {
+        const ok = await confirm({
+            title: "Delete return?",
+            description: `This action will permanently delete return "${row.returnNo}" (${row.productName}). This cannot be undone.`,
+            confirmText: "Delete",
+            cancelText: "Cancel",
+            variant: "destructive",
+        });
+        if (!ok) return;
+
+        setError(null);
+        try {
+            await deleteReturn(row.id);
+            await loadData();
+        } catch (err) {
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : "Failed to delete return record."
+            );
+        }
+    }
+
+    const columns: DataTableColumn<ReturnRecord>[] = [
         {
             key: "returnNo",
             title: "Return No",
-            render: (item: ReturnItem) => (
-                <button className="max-w-[120px] text-left text-[16px] font-bold leading-8 text-[#175CFF] hover:underline">
-                    {item.returnNo}
+            render: (item: ReturnRecord) => (
+                <button
+                    type="button"
+                    className="text-left text-[16px] font-bold leading-6 text-[#175CFF] hover:underline"
+                >
+                    #{item.returnNo}
                 </button>
             ),
         },
         {
             key: "partner",
             title: "Source / Partner",
-            render: (item: ReturnItem) => <PartnerCell item={item} />,
+            render: (item: ReturnRecord) => <PartnerCell item={item} />,
         },
         {
             key: "product",
             title: "Product & Items",
-            render: (item: ReturnItem) => <ProductCell item={item} />,
+            render: (item: ReturnRecord) => <ProductCell item={item} />,
         },
         {
             key: "qty",
             title: "Qty",
             className: "text-[16px] font-medium text-[#183B6B]",
-            render: (item: ReturnItem) => String(item.qty).padStart(2, "0"),
+            render: (item: ReturnRecord) => String(item.qty).padStart(2, "0"),
         },
         {
             key: "requestedAt",
             title: "Requested",
             className: "text-[16px] font-medium text-[#4F6786]",
-            render: (item: ReturnItem) => (
+            render: (item: ReturnRecord) => (
                 <span className="whitespace-pre-line">
-                    {item.requestedAt}
+                    {formatRequestedAt(item.requestedAt)}
                 </span>
             ),
         },
         {
             key: "status",
             title: "Status",
-            render: (item: ReturnItem) => <ReturnStatusBadge status={item.status} />,
+            render: (item: ReturnRecord) => (
+                <ReturnStatusBadge status={item.status} />
+            ),
         },
         {
             key: "actions",
-            title: "",
-            render: () => <ActionCell />,
+            title: "Actions",
+            render: (item: ReturnRecord) => (
+                <div className="flex items-center gap-2">
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-lg"
+                        onClick={() => openEdit(item)}
+                        aria-label={`Edit return ${item.returnNo}`}
+                    >
+                        <Pencil className="h-4 w-4" />
+                    </Button>
+
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700"
+                        onClick={() => void handleDelete(item)}
+                        aria-label={`Delete return ${item.returnNo}`}
+                    >
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                </div>
+            ),
         },
     ];
 
     return (
         <div className="min-h-screen bg-[#F6F8FC]">
             <div className="mx-auto w-full max-w-[1440px] space-y-6">
-                {/* header */}
                 <PageHeader
                     title="Returns"
                     description="Manage and track customer and supplier return records."
                     actions={[
                         {
                             label: "Export",
-                            icon: <Download size={22} strokeWidth={2.2} />,
-                            onClick: () => console.log("Export clicked")
+                            icon: (
+                                <Download size={22} strokeWidth={2.2} />
+                            ),
+                            onClick: () => {
+                                const blob = new Blob(
+                                    [JSON.stringify(filteredData, null, 2)],
+                                    { type: "application/json" }
+                                );
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement("a");
+                                a.href = url;
+                                a.download = "returns-export.json";
+                                a.click();
+                                URL.revokeObjectURL(url);
+                            },
                         },
                         {
                             label: "Create Return",
                             icon: <Plus size={22} strokeWidth={2.2} />,
-                            onClick: () => console.log("Create Return clicked")
+                            onClick: openCreate,
                         },
                     ]}
                 />
 
-                {/* kpi */}
                 <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
                     <KpiCard
                         title="Returns This Month"
-                        value="42"
+                        value={kpi.thisMonth}
                         description=""
-                        footer={<span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-600">
-                            +12% vs LY
-                        </span>}
+                        footer={
+                            <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-600">
+                                Current period
+                            </span>
+                        }
                         rightIcon={
                             <div className="flex items-center gap-3">
                                 <div className="rounded-lg bg-[#EEF4FF] p-3 text-[#2563EB]">
                                     <ClipboardCheck className="h-5 w-5" />
                                 </div>
-
                             </div>
                         }
                     />
 
                     <KpiCard
                         title="Pending Inspection"
-                        value="8"
+                        value={kpi.inspecting}
                         description=""
-                        footer={<span className="rounded-full bg-rose-50 px-3 py-1 text-sm font-semibold text-[#A94442]">
-                            Urgent
-                        </span>}
+                        footer={
+                            <span className="rounded-full bg-rose-50 px-3 py-1 text-sm font-semibold text-[#A94442]">
+                                Inspecting
+                            </span>
+                        }
                         rightIcon={
                             <div className="flex items-center gap-3">
                                 <div className="rounded-lg bg-orange-50 p-3 text-orange-500">
                                     <AlertTriangle className="h-5 w-5" />
                                 </div>
-
                             </div>
                         }
                     />
 
                     <KpiCard
-                        title="Refunded"
-                        value="15"
+                        title="Completed"
+                        value={kpi.completed}
                         description=""
-                        footer={<span className="rounded-full bg-[#EAF1FF] px-3 py-1 text-sm font-semibold text-[#5E7AA2]">
-                            In Sync
-                        </span>}
+                        footer={
+                            <span className="rounded-full bg-[#EAF1FF] px-3 py-1 text-sm font-semibold text-[#5E7AA2]">
+                                Closed
+                            </span>
+                        }
                         rightIcon={
                             <div className="flex items-center gap-3">
                                 <div className="rounded-lg bg-[#F2EAFE] p-3 text-[#6E56A8]">
                                     <RotateCcw className="h-5 w-5" />
                                 </div>
-
                             </div>
                         }
                     />
 
                     <KpiCard
                         title="Rejected Returns"
-                        value="2"
+                        value={kpi.rejected}
                         description=""
-                        footer={<span className="rounded-full bg-[#EAF1FF] px-3 py-1 text-sm font-semibold text-[#2563EB]">
-                            Active
-                        </span>}
+                        footer={
+                            <span className="rounded-full bg-[#EAF1FF] px-3 py-1 text-sm font-semibold text-[#2563EB]">
+                                Active
+                            </span>
+                        }
                         rightIcon={
                             <div className="flex items-center gap-3">
                                 <div className="rounded-lg bg-[#EEF4FF] p-3 text-[#0B3A6E]">
                                     <Ban className="h-5 w-5" />
                                 </div>
-
                             </div>
                         }
                     />
                 </div>
 
-                {/* filter panel */}
                 <DataFilterBar
                     fields={filterFields}
                     actionSlot={
                         <Button
+                            type="button"
                             variant="ghost"
                             size="icon"
                             className="h-12 w-12 rounded-xl bg-[#EAF1FF] text-[#5B7BEA] hover:bg-[#DFE9FF]"
+                            onClick={() => void loadData()}
+                            disabled={loading}
+                            aria-label="Refresh from server"
                         >
-                            <RefreshCw className="h-5 w-5" />
+                            <RefreshCw
+                                className={cn("h-5 w-5", loading && "animate-spin")}
+                            />
                         </Button>
                     }
                 />
 
-                {/* table */}
+                {error && (
+                    <div
+                        className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+                        role="alert"
+                    >
+                        {error}
+                    </div>
+                )}
+
                 <DataTable
                     data={pagedData}
                     columns={columns}
-                    rowKey={(row: ReturnItem) => row.id}
+                    rowKey={(row: ReturnRecord) => row.id}
                     selectable={false}
-                    emptyText="No return records found"
+                    emptyText={
+                        loading
+                            ? "Loading return records…"
+                            : "No return records found"
+                    }
                     footerLeft={`Showing ${filteredData.length === 0 ? 0 : (currentPage - 1) * pageSize + 1
-                        } to ${Math.min(currentPage * pageSize, filteredData.length)} of ${filteredData.length} return records`}
+                        } to ${Math.min(
+                            currentPage * pageSize,
+                            filteredData.length
+                        )} of ${filteredData.length} return records`}
                     pagination={{
                         currentPage,
                         totalPages,
@@ -377,6 +499,14 @@ export default function ReturnsPage() {
                     }}
                 />
             </div>
+
+            <ReturnDrawer
+                open={drawerOpen}
+                mode={drawerMode}
+                initialData={drawerMode === "edit" ? drawerRecord : null}
+                onClose={closeDrawer}
+                onSubmit={handleDrawerSubmit}
+            />
         </div>
     );
 }
