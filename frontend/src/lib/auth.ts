@@ -124,7 +124,7 @@ export async function logout() {
   } catch (e) {
     console.warn("signOut error", e);
   }
-
+  document.cookie = "erp_auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax";
   window.location.href = "/login";
 }
 

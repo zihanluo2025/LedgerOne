@@ -20,6 +20,7 @@ export default function LoginPage() {
     useEffect(() => {
         (async () => {
             if (await isSignedIn()) {
+                document.cookie = `erp_auth=1; path=/; max-age=${60 * 60 * 8}; samesite=lax`;
                 router.replace("/dashboard");
             }
         })();
@@ -35,6 +36,7 @@ export default function LoginPage() {
             const res = await loginWithPassword(email, password);
 
             if (res.isSignedIn) {
+                document.cookie = `erp_auth=1; path=/; max-age=${60 * 60 * 8}; samesite=lax`;
                 toastSuccess(res.alreadySignedIn ? "Welcome back!" : "Login successful!");
                 router.push("/dashboard");
                 return;
