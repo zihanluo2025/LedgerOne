@@ -51,7 +51,6 @@ Detailed documentation is maintained in Notion:
 
 ### Backend
 - ASP.NET Core (.NET 8)
-- Minimal APIs
 - AWS Lambda
 - Amazon API Gateway
 - Amazon DynamoDB
