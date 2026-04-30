@@ -3,7 +3,8 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import "@/lib/auth";
-import { waitForToken } from "@/lib/auth";
+import { waitForToken, setAuthCookie } from "@/lib/auth";
+
 
 export default function CallbackPage() {
     const router = useRouter();
@@ -13,7 +14,7 @@ export default function CallbackPage() {
             const token = await waitForToken(6000);
             if (token) {
                 // route to products page and set a cookie to indicate the user is authenticated
-                document.cookie = `erp_auth=1; path=/; max-age=${60 * 60 * 8}`;
+                setAuthCookie();
                 router.replace("/dashboard");
             } else {
                 router.replace("/login");

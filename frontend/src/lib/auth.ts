@@ -18,6 +18,19 @@ const domain = process.env.NEXT_PUBLIC_COGNITO_DOMAIN!.replace(
 const redirectSignIn = process.env.NEXT_PUBLIC_COGNITO_REDIRECT_SIGNIN!;
 const redirectSignOut = process.env.NEXT_PUBLIC_COGNITO_REDIRECT_SIGNOUT!;
 
+export const AUTH_COOKIE_NAME =
+  process.env.NEXT_PUBLIC_AUTH_COOKIE_NAME || "legerone_auth_local";
+
+const AUTH_COOKIE_MAX_AGE = 60 * 60 * 8;
+
+export function setAuthCookie() {
+  document.cookie = `${AUTH_COOKIE_NAME}=1; path=/; max-age=${AUTH_COOKIE_MAX_AGE}; samesite=lax`;
+}
+
+export function clearAuthCookie() {
+  document.cookie = `${AUTH_COOKIE_NAME}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax`;
+}
+
 Amplify.configure({
   Auth: {
     Cognito: {
@@ -79,6 +92,7 @@ export async function startHostedLogin(options?: { redirectTo?: string }) {
   const signedIn = await isSignedIn();
 
   if (signedIn) {
+    setAuthCookie();
     window.location.href = options?.redirectTo ?? "/dashboard";
     return;
   }
@@ -124,7 +138,8 @@ export async function logout() {
   } catch (e) {
     console.warn("signOut error", e);
   }
-  document.cookie = "erp_auth=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; samesite=lax";
+
+  clearAuthCookie();
   window.location.href = "/login";
 }
 

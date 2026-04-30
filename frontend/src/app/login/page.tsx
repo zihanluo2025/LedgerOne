@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Mail, Lock, Fingerprint, ArrowRight } from "lucide-react";
 
-import { startHostedLogin, isSignedIn, loginWithPassword } from "@/lib/auth";
+import { startHostedLogin, isSignedIn, loginWithPassword, setAuthCookie } from "@/lib/auth";
 
 import { Button } from "@/components/ui/button";
 import { toastError, toastSuccess, toastWarning } from "@/lib/tools/toast";
@@ -20,7 +20,7 @@ export default function LoginPage() {
     useEffect(() => {
         (async () => {
             if (await isSignedIn()) {
-                document.cookie = `erp_auth=1; path=/; max-age=${60 * 60 * 8}; samesite=lax`;
+                setAuthCookie();
                 router.replace("/dashboard");
             }
         })();
@@ -36,7 +36,7 @@ export default function LoginPage() {
             const res = await loginWithPassword(email, password);
 
             if (res.isSignedIn) {
-                document.cookie = `erp_auth=1; path=/; max-age=${60 * 60 * 8}; samesite=lax`;
+                setAuthCookie();
                 toastSuccess(res.alreadySignedIn ? "Welcome back!" : "Login successful!");
                 router.push("/dashboard");
                 return;
