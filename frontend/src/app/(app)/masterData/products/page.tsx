@@ -162,7 +162,9 @@ function ProductCell({ item }: { item: ProductViewItem }) {
                 <Image
                     src={item.image}
                     alt={item.name}
-                    className="h-full w-full object-cover"
+                    width={48}
+                    height={48}
+                    unoptimized
                 />
             </div>
 
