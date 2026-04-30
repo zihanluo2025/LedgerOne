@@ -1,24 +1,9 @@
 "use client";
 
-// import Image from "next/image";
+
 import { Card, CardContent } from "@/components/ui/card";
 
-// const trendClasses: Record<KpiItem["trendType"], string> = {
-//     positive:
-//         "bg-emerald-50 text-emerald-700",
-//     neutral:
-//         " bg-slate-50 text-slate-600",
-//     warning:
-//         " bg-amber-50 text-amber-700",
-// };
 
-
-
-// const progressClasses: Record<KpiItem["trendType"], string> = {
-//     positive: "bg-emerald-100",
-//     neutral: "bg-slate-200",
-//     warning: "bg-amber-500",
-// };
 
 export default function KpiCard({
     title,
@@ -26,15 +11,9 @@ export default function KpiCard({
     suffix,
     description,
     rightIcon,
-    badge,
     footer,
     suffixText,
-    customContent,
-    className,
-    valueClassName,
-    descriptionClassName,
-    icon,
-    trend
+    customContent
 }: {
     title: string;
     value: string;

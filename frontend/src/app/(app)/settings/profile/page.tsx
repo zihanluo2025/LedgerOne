@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
+
 import {
     Bell,
     BriefcaseBusiness,
@@ -11,7 +11,6 @@ import {
     LockKeyhole,
     Mail,
     Shield,
-    User,
     UserRound,
 } from "lucide-react";
 
@@ -19,21 +18,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 
-type TabKey = "profile" | "security" | "notifications" | "api";
 
-const sidebarItems: {
-    key: TabKey;
-    label: string;
-    icon: React.ComponentType<{ className?: string }>;
-}[] = [
-        { key: "profile", label: "Profile", icon: User },
-        { key: "security", label: "Security", icon: Shield },
-        { key: "notifications", label: "Notifications", icon: Bell },
-        { key: "api", label: "API Access", icon: LockKeyhole },
-    ];
+
 
 export default function ProfilePage() {
-    const [activeTab, setActiveTab] = useState<TabKey>("profile");
+
 
     const [form, setForm] = useState({
         fullName: "Alexander Sterling",

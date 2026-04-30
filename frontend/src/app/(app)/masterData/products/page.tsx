@@ -12,6 +12,7 @@ import {
     XCircle,
     Pencil, Trash2
 } from "lucide-react";
+import Image from "next/image";
 
 import { Button } from "@/components/ui/button";
 import DataFilterBar from "@/components/common/data-filter-bar";
@@ -34,7 +35,7 @@ import type {
     Product,
     ProductFormValues,
 } from "@/types/product";
-import { fi } from "zod/locales";
+
 import { DataTableColumn } from "@/components/common/data-table/types";
 
 type DrawerMode = "create" | "edit";
@@ -158,7 +159,7 @@ function ProductCell({ item }: { item: ProductViewItem }) {
     return (
         <div className="flex items-center gap-4">
             <div className="h-12 w-12 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-                <img
+                <Image
                     src={item.image}
                     alt={item.name}
                     className="h-full w-full object-cover"

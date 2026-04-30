@@ -18,7 +18,6 @@ import {
 import FormDrawer from "@/components/common/form-drawer";
 
 import type {
-    CreateInboundFormValues,
     CreateInboundRequest,
 } from "@/types/inbound";
 
