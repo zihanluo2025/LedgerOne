@@ -175,7 +175,7 @@ export default function MySubmittedRequestsPage() {
             const matchType =
                 type === "all" || item.type.toLowerCase() === type;
 
-            const normalizedStatus = item.status.toLowerCase().replace(/\s+/g, "-");
+            const normalizedStatus = (item.status ?? "").toLowerCase().replace(/\s+/g, "-");
             const matchStatus =
                 status === "all" || normalizedStatus === status;
 
