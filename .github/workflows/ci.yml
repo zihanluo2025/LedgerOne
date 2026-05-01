@@ -39,7 +39,21 @@ jobs:
       - name: Type check
         run: npm run type-check
 
+      - name: Debug frontend build context
+        working-directory: frontend
+        run: |
+          pwd
+          node -v
+          npm -v
+          git rev-parse --short HEAD
+          ls -la
+          find src/app/\(app\)/approvals/audit -maxdepth 2 -type f -print
+          grep -R "\.replace" src/app/\(app\)/approvals/audit src/components src/lib src/types || true
+
       - name: Build
+        working-directory: frontend
+        env:
+          NODE_OPTIONS: --enable-source-maps
         run: npm run build
 
   backend-check:
