@@ -16,18 +16,18 @@ import type { FilterField } from "@/components/common/data-filter-bar/types";
 import KpiCard from "@/components/common/kpi-card";
 import DataTable from "@/components/common/data-table";
 import PageHeader from "@/components/common/PageHeader";
-import { DataTableColumn } from "@/components/common/data-table/types";
+import type { DataTableColumn } from "@/components/common/data-table/types";
 
 type AuditItem = {
     id: string;
-    docNo: string;
-    type: "Inbound" | "Sales";
-    requester: string;
-    summary: string;
-    currentApprover: string;
-    department: string;
-    submittedAt: string;
-    status: "In Progress" | "Approved" | "Rejected" | "Cancelled" | "Overdue";
+    docNo?: string | null;
+    type?: "Inbound" | "Sales" | string | null;
+    requester?: string | null;
+    summary?: string | null;
+    currentApprover?: string | null;
+    department?: string | null;
+    submittedAt?: string | null;
+    status?: "In Progress" | "Approved" | "Rejected" | "Cancelled" | "Overdue" | string | null;
 };
 
 const auditData: AuditItem[] = [
@@ -125,10 +125,22 @@ function cn(...classes: Array<string | false | undefined>) {
     return classes.filter(Boolean).join(" ");
 }
 
-function getInitials(name: string) {
-    if (!name || name === "—" || name === "Completed") return name;
+function safeText(value?: string | null) {
+    return value ?? "";
+}
 
-    return name
+function normalizeValue(value?: string | null) {
+    return safeText(value).toLowerCase().trim().replace(/\s+/g, "-");
+}
+
+function getInitials(name?: string | null) {
+    const safeName = safeText(name);
+
+    if (!safeName || safeName === "—" || safeName === "Completed") {
+        return safeName;
+    }
+
+    return safeName
         .split(" ")
         .map((part) => part[0])
         .join("")
@@ -136,8 +148,9 @@ function getInitials(name: string) {
         .toUpperCase();
 }
 
-function TypeBadge({ type }: { type: AuditItem["type"] }) {
-    const isInbound = type === "Inbound";
+function TypeBadge({ type }: { type?: AuditItem["type"] }) {
+    const safeType = safeText(type);
+    const isInbound = safeType === "Inbound";
 
     return (
         <span
@@ -148,13 +161,15 @@ function TypeBadge({ type }: { type: AuditItem["type"] }) {
                     : "bg-[#E8DFFC] text-[#6C5AAE]"
             )}
         >
-            {type.toUpperCase()}
+            {safeType.toUpperCase()}
         </span>
     );
 }
 
-function StatusBadge({ status }: { status: AuditItem["status"] }) {
-    const statusClassMap = {
+function StatusBadge({ status }: { status?: AuditItem["status"] }) {
+    const safeStatus = safeText(status);
+
+    const statusClassMap: Record<string, string> = {
         "In Progress": "border-blue-200 bg-blue-50 text-blue-700",
         Approved: "border-emerald-200 bg-emerald-50 text-emerald-700",
         Rejected: "border-rose-200 bg-rose-50 text-rose-700",
@@ -162,7 +177,7 @@ function StatusBadge({ status }: { status: AuditItem["status"] }) {
         Overdue: "border-orange-200 bg-orange-50 text-orange-600",
     };
 
-    const dotClassMap = {
+    const dotClassMap: Record<string, string> = {
         "In Progress": "bg-blue-500",
         Approved: "bg-emerald-500",
         Rejected: "bg-rose-500",
@@ -174,11 +189,11 @@ function StatusBadge({ status }: { status: AuditItem["status"] }) {
         <span
             className={cn(
                 "inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-bold uppercase tracking-[0.04em]",
-                statusClassMap[status]
+                statusClassMap[safeStatus] ?? "border-slate-200 bg-slate-100 text-slate-500"
             )}
         >
-            <span className={cn("h-2 w-2 rounded-full", dotClassMap[status])} />
-            {status}
+            <span className={cn("h-2 w-2 rounded-full", dotClassMap[safeStatus] ?? "bg-slate-400")} />
+            {safeStatus || "Unknown"}
         </span>
     );
 }
@@ -198,21 +213,19 @@ export default function ApprovalAuditCenterPage() {
         return auditData.filter((item) => {
             const matchKeyword =
                 !keyword ||
-                item.docNo.toLowerCase().includes(keyword) ||
-                item.summary.toLowerCase().includes(keyword) ||
-                item.requester.toLowerCase().includes(keyword) ||
-                item.currentApprover.toLowerCase().includes(keyword);
+                safeText(item.docNo).toLowerCase().includes(keyword) ||
+                safeText(item.summary).toLowerCase().includes(keyword) ||
+                safeText(item.requester).toLowerCase().includes(keyword) ||
+                safeText(item.currentApprover).toLowerCase().includes(keyword);
 
             const matchType =
-                type === "all" || item.type.toLowerCase() === type;
+                type === "all" || safeText(item.type).toLowerCase() === type;
 
-            const normalizedStatus = (item.status ?? "")
-                .toLowerCase()
-                .replace(/\s+/g, "-");
+            const normalizedStatus = normalizeValue(item.status);
             const matchStatus =
                 status === "all" || normalizedStatus === status;
 
-            const normalizedDepartment = item.department.toLowerCase();
+            const normalizedDepartment = safeText(item.department).toLowerCase();
             const matchDepartment =
                 department === "all" || normalizedDepartment === department;
 
@@ -223,9 +236,10 @@ export default function ApprovalAuditCenterPage() {
     const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
 
     const pagedData = useMemo(() => {
-        const start = (currentPage - 1) * pageSize;
+        const safeCurrentPage = Math.min(currentPage, totalPages);
+        const start = (safeCurrentPage - 1) * pageSize;
         return filteredData.slice(start, start + pageSize);
-    }, [filteredData, currentPage]);
+    }, [filteredData, currentPage, totalPages]);
 
     const filterFields: FilterField[] = [
         {
@@ -296,8 +310,11 @@ export default function ApprovalAuditCenterPage() {
             key: "docNo",
             title: "Document No",
             render: (item: AuditItem) => (
-                <button className="max-w-[180px] text-left font-bold leading-8 text-[#1557E5] hover:underline">
-                    {item.docNo}
+                <button
+                    type="button"
+                    className="max-w-[180px] text-left font-bold leading-8 text-[#1557E5] hover:underline"
+                >
+                    {safeText(item.docNo)}
                 </button>
             ),
         },
@@ -315,7 +332,7 @@ export default function ApprovalAuditCenterPage() {
                         {getInitials(item.requester)}
                     </div>
                     <span className="max-w-[100px] text-[15px] font-semibold leading-6 text-slate-700">
-                        {item.requester}
+                        {safeText(item.requester)}
                     </span>
                 </div>
             ),
@@ -324,17 +341,19 @@ export default function ApprovalAuditCenterPage() {
             key: "currentApprover",
             title: "Current Approver",
             render: (item: AuditItem) => {
-                if (item.currentApprover === "Completed" || item.currentApprover === "—") {
+                const approver = safeText(item.currentApprover);
+
+                if (approver === "Completed" || approver === "—") {
                     return (
                         <span
                             className={cn(
                                 "text-[14px] font-semibold",
-                                item.currentApprover === "Completed"
+                                approver === "Completed"
                                     ? "text-emerald-600"
                                     : "text-slate-400"
                             )}
                         >
-                            {item.currentApprover}
+                            {approver}
                         </span>
                     );
                 }
@@ -346,7 +365,7 @@ export default function ApprovalAuditCenterPage() {
                             item.status === "Overdue" ? "text-rose-600" : "text-[#183B6B]"
                         )}
                     >
-                        {item.currentApprover}
+                        {approver}
                     </span>
                 );
             },
@@ -355,7 +374,7 @@ export default function ApprovalAuditCenterPage() {
             key: "department",
             title: "Dept.",
             className: "text-[14px] font-medium text-slate-500",
-            render: (item: AuditItem) => item.department,
+            render: (item: AuditItem) => safeText(item.department),
         },
         {
             key: "submittedAt",
@@ -363,7 +382,7 @@ export default function ApprovalAuditCenterPage() {
             className: "text-[14px] font-medium text-slate-400",
             render: (item: AuditItem) => (
                 <span className="whitespace-pre-line">
-                    {item.submittedAt}
+                    {safeText(item.submittedAt)}
                 </span>
             ),
         },
@@ -384,7 +403,7 @@ export default function ApprovalAuditCenterPage() {
                         {
                             label: "Export All",
                             icon: <Download size={22} strokeWidth={2.2} />,
-                            onClick: () => console.log("Export All clicked")
+                            onClick: () => console.log("Export All clicked"),
                         },
                     ]}
                 />
@@ -466,8 +485,6 @@ export default function ApprovalAuditCenterPage() {
                         onPageChange: setCurrentPage,
                     }}
                 />
-
-
             </div>
         </div>
     );

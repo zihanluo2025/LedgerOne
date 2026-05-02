@@ -14,6 +14,7 @@ jobs:
   frontend-check:
     name: Frontend Check
     runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
 
     defaults:
       run:
@@ -40,6 +41,15 @@ jobs:
         run: npm run type-check
 
       - name: Build
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL }}
+          NEXT_PUBLIC_COGNITO_USER_POOL_ID: ${{ vars.NEXT_PUBLIC_COGNITO_USER_POOL_ID }}
+          NEXT_PUBLIC_COGNITO_CLIENT_ID: ${{ vars.NEXT_PUBLIC_COGNITO_CLIENT_ID }}
+          NEXT_PUBLIC_COGNITO_DOMAIN: ${{ vars.NEXT_PUBLIC_COGNITO_DOMAIN }}
+          NEXT_PUBLIC_COGNITO_REDIRECT_SIGNIN: ${{ vars.NEXT_PUBLIC_COGNITO_REDIRECT_SIGNIN }}
+          NEXT_PUBLIC_COGNITO_REDIRECT_SIGNOUT: ${{ vars.NEXT_PUBLIC_COGNITO_REDIRECT_SIGNOUT }}
+          NEXT_PUBLIC_AUTH_COOKIE_NAME: ${{ vars.NEXT_PUBLIC_AUTH_COOKIE_NAME }}
         run: npm run build
 
   backend-check:
