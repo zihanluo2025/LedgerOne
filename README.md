@@ -1,8 +1,7 @@
 # LedgerOne
 
-- Online :
-DEV: https://dev-ledgerone.luozihan.space
-Production: https://ledgerone.luozihan.space
+- DEV: https://dev-ledgerone.luozihan.space
+- Production: https://ledgerone.luozihan.space
 
 A modern cloud-based ERP  system built with ASP.NET Core (.NET 8) and Next.js 14, deployed on AWS (Lambda + API Gateway + Amplify).
 
