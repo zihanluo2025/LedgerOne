@@ -14,6 +14,7 @@ export type ReturnRecord = {
   requestedAt: string;
   status: ReturnStatus;
   createdAt: string;
+  updatedAt: string;
 };
 
 export type CreateReturnRequest = {

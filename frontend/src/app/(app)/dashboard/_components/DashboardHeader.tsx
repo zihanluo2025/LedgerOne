@@ -2,8 +2,12 @@
 
 import { useCurrentUser } from "@/lib/use-current-user";
 
-export default function DashboardHeader() {
+export default function DashboardHeader({ generatedAt }: { generatedAt?: string }) {
     const { displayName, loading } = useCurrentUser();
+
+    const updated = generatedAt
+        ? new Date(generatedAt).toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit" })
+        : null;
 
     return (
         <section className="space-y-2">
@@ -13,6 +17,7 @@ export default function DashboardHeader() {
 
             <p className="text-base text-[var(--erp-text-secondary)]">
                 Here&apos;s your architectural overview for today.
+                {updated ? ` Live data as of ${updated}.` : null}
             </p>
         </section>
     );

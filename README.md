@@ -83,6 +83,20 @@ Detailed documentation is maintained in Notion:
   - User listing backed by Cognito (pagination supported)
   - IAM role-based secure access from Lambda to Cognito
 
+## Business Modules
+- Products, Suppliers, Customers, Sales Orders, Inbound, Returns — full CRUD persisted to DynamoDB
+  - Single-table layout: `PK = ORG#{orgId}`, `SK = {ENTITY}#{id}` (SUPPLIER, CUSTOMER, ORDER, INBOUND, RETURN, APPROVAL, AUDIT)
+  - Soft delete, audit fields (`createdBy/At`, `updatedBy/At`), per-organisation partitioning
+  - Set `UseDynamoDb=false` to run locally against an in-memory store
+- Approval workflow
+  - Creating an inbound or a sales order submits it for approval automatically
+  - Approve / reject (comment required) / withdraw / batch approve; every transition is written to the audit log
+  - Approved sales orders move Draft → Confirmed, rejected ones → Cancelled; inbound goods can only be received after approval
+  - Requests pending for more than 48h are flagged as overdue
+- Dashboard (`GET /api/dashboard/summary?days=7|30`) — live KPIs, sales trend, inventory breakdown and generated notices
+- CSV export on every list page
+- Errors are returned as `{ "message": "..." }` (400 validation, 404 not found, 403 forbidden, 409 conflict / invalid state)
+
 
 # Project Structure
  ```bash

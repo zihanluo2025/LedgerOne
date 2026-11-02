@@ -13,10 +13,11 @@ export type Product = {
   createdBy: string;
   updatedAt: string;
   updatedBy: string;
-  category: string | null;
-  sku: string | null;
-  image: string | null;
-  imageUrl: string | null;
+  // Not yet provided by the API; reserved for catalogue enrichment.
+  category?: string | null;
+  sku?: string | null;
+  image?: string | null;
+  imageUrl?: string | null;
 };
 
 export type ProductFormValues = {

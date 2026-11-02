@@ -1,10 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-    Download,
-    Filter
-} from "lucide-react";
+import { Download, RefreshCw, Undo2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import DataFilterBar from "@/components/common/data-filter-bar";
@@ -12,183 +9,96 @@ import type { FilterField } from "@/components/common/data-filter-bar/types";
 import KpiCard from "@/components/common/kpi-card";
 import DataTable from "@/components/common/data-table";
 import PageHeader from "@/components/common/PageHeader";
-import { DataTableColumn } from "@/components/common/data-table/types";
+import type { DataTableColumn } from "@/components/common/data-table/types";
 
-type SubmittedItem = {
-    id: string;
-    docNo: string;
-    type: "Inbound" | "Sales";
-    summary: string;
-    currentApprover: string;
-    approverRole?: string;
-    submittedAt: string;
-    lastUpdated: string;
-    status: "In Progress" | "Approved" | "Rejected" | "Cancelled";
-};
+import { useConfirm } from "@/hooks/use-confirm";
+import { withdrawRequest } from "@/lib/apis/approvals";
+import { exportToCsv } from "@/lib/export";
+import { toastApiError, toastSuccess } from "@/lib/tools/toast";
+import type { ApprovalRequest } from "@/types/approval";
 
-const submittedData: SubmittedItem[] = [
-    {
-        id: "1",
-        docNo: "INB-20260405-001",
-        type: "Inbound",
-        summary: "500x Steel Chassis, Main Warehouse",
-        currentApprover: "Amanda T.",
-        approverRole: "Finance Lead",
-        submittedAt: "2026-04-05 09:45",
-        lastUpdated: "2026-04-06 14:20",
-        status: "In Progress",
-    },
-    {
-        id: "2",
-        docNo: "SLS-20260403-112",
-        type: "Sales",
-        summary: "Q2 Enterprise License Renewal",
-        currentApprover: "Completed",
-        submittedAt: "2026-04-03 16:12",
-        lastUpdated: "2026-04-04 09:00",
-        status: "Approved",
-    },
-    {
-        id: "3",
-        docNo: "INB-20260401-045",
-        type: "Inbound",
-        summary: "Emergency Lab Supplies",
-        currentApprover: "Completed",
-        submittedAt: "2026-04-01 11:30",
-        lastUpdated: "2026-04-01 15:45",
-        status: "Rejected",
-    },
-    {
-        id: "4",
-        docNo: "SLS-20260328-099",
-        type: "Sales",
-        summary: "Wholesale Furniture Bulk Order",
-        currentApprover: "-",
-        submittedAt: "2026-03-28 14:05",
-        lastUpdated: "2026-03-29 10:20",
-        status: "Cancelled",
-    },
-    {
-        id: "5",
-        docNo: "INB-20260406-017",
-        type: "Inbound",
-        summary: "Sensor Component Restock - Building A",
-        currentApprover: "Michael J.",
-        approverRole: "Ops Manager",
-        submittedAt: "2026-04-06 08:40",
-        lastUpdated: "2026-04-06 13:10",
-        status: "In Progress",
-    },
-    {
-        id: "6",
-        docNo: "SLS-20260402-084",
-        type: "Sales",
-        summary: "Strategic Discount for Key Account",
-        currentApprover: "Completed",
-        submittedAt: "2026-04-02 10:15",
-        lastUpdated: "2026-04-03 17:30",
-        status: "Approved",
-    },
-];
-
-function cn(...classes: Array<string | false | undefined>) {
-    return classes.filter(Boolean).join(" ");
-}
-
-function getInitials(name: string) {
-    if (!name || name === "-" || name === "Completed") return name;
-    return name
-        .split(" ")
-        .map((part) => part[0])
-        .join("")
-        .slice(0, 2)
-        .toUpperCase();
-}
-
-function TypeBadge({ type }: { type: SubmittedItem["type"] }) {
-    const isInbound = type === "Inbound";
-
-    return (
-        <span
-            className={cn(
-                "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
-                isInbound
-                    ? "bg-[#DCEBFF] text-[#2D6BCF]"
-                    : "bg-[#E8DFFC] text-[#6C5AAE]"
-            )}
-        >
-            {type.toUpperCase()}
-        </span>
-    );
-}
-
-function StatusBadge({ status }: { status: SubmittedItem["status"] }) {
-    const statusMap = {
-        "In Progress":
-            "border-blue-200 bg-blue-50 text-blue-700",
-        Approved:
-            "border-emerald-200 bg-emerald-50 text-emerald-700",
-        Rejected:
-            "border-rose-200 bg-rose-50 text-rose-700",
-        Cancelled:
-            "border-slate-200 bg-slate-100 text-slate-500",
-    };
-
-    const dotMap = {
-        "In Progress": "bg-blue-500",
-        Approved: "bg-emerald-500",
-        Rejected: "bg-rose-500",
-        Cancelled: "bg-slate-400",
-    };
-
-    return (
-        <span
-            className={cn(
-                "inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-bold uppercase tracking-[0.04em]",
-                statusMap[status]
-            )}
-        >
-            <span className={cn("h-2 w-2 rounded-full", dotMap[status])} />
-            {status}
-        </span>
-    );
-}
+import { useApprovals } from "../_components/use-approvals";
+import {
+    ApprovalStatusBadge,
+    businessTypeOptions,
+    cn,
+    describeRequest,
+    DocumentCell,
+    formatDateTime,
+    isOverdue,
+    isThisMonth,
+    OutcomeStat,
+    PersonCell,
+    TypeBadge,
+} from "../_components/shared";
 
 export default function MySubmittedRequestsPage() {
+    const { confirm } = useConfirm();
+    const { items, loading, error, reload } = useApprovals("Mine");
+
     const [search, setSearch] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const [type, setType] = useState("all");
     const [status, setStatus] = useState("all");
 
-    const pageSize = 4;
+    const pageSize = 8;
 
     const filteredData = useMemo(() => {
         const keyword = search.trim().toLowerCase();
 
-        return submittedData.filter((item) => {
+        return items.filter((item) => {
             const matchKeyword =
                 !keyword ||
-                item.docNo.toLowerCase().includes(keyword) ||
+                item.documentNo.toLowerCase().includes(keyword) ||
                 item.summary.toLowerCase().includes(keyword) ||
-                item.currentApprover.toLowerCase().includes(keyword);
+                item.partner.toLowerCase().includes(keyword) ||
+                (item.processedByName ?? "").toLowerCase().includes(keyword);
 
-            const matchType =
-                type === "all" || item.type.toLowerCase() === type;
-
-            const normalizedStatus = (item.status ?? "").toLowerCase().replace(/\s+/g, "-");
-            const matchStatus =
-                status === "all" || normalizedStatus === status;
+            const matchType = type === "all" || item.businessType === type;
+            const matchStatus = status === "all" || item.status === status;
 
             return matchKeyword && matchType && matchStatus;
         });
-    }, [search, type, status]);
+    }, [items, search, type, status]);
 
     const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
+    const safePage = Math.min(currentPage, totalPages);
 
     const pagedData = useMemo(() => {
-        const start = (currentPage - 1) * pageSize;
+        const start = (safePage - 1) * pageSize;
         return filteredData.slice(start, start + pageSize);
-    }, [filteredData, currentPage]);
+    }, [filteredData, safePage]);
+
+    const kpi = useMemo(() => {
+        const pending = items.filter((item) => item.status === "Pending").length;
+        return {
+            thisMonth: items.filter((item) => isThisMonth(item.submittedAt)).length,
+            pending,
+            pendingPercent: items.length > 0 ? Math.round((pending / items.length) * 100) : 0,
+            approved: items.filter((item) => item.status === "Approved").length,
+            rejected: items.filter((item) => item.status === "Rejected").length,
+            withdrawn: items.filter((item) => item.status === "Withdrawn").length,
+        };
+    }, [items]);
+
+    async function handleWithdraw(item: ApprovalRequest) {
+        const ok = await confirm({
+            title: "Withdraw request?",
+            description: `${item.documentNo} will be removed from the approval queue. The document itself is kept.`,
+            confirmText: "Withdraw",
+            cancelText: "Cancel",
+            variant: "destructive",
+        });
+        if (!ok) return;
+
+        try {
+            await withdrawRequest(item.id);
+            toastSuccess(`${item.documentNo} has been withdrawn.`, "Request Withdrawn");
+            await reload();
+        } catch (e) {
+            toastApiError(e, "Withdraw Failed");
+        }
+    }
 
     const filterFields: FilterField[] = [
         {
@@ -210,11 +120,7 @@ export default function MySubmittedRequestsPage() {
                 setType(value);
                 setCurrentPage(1);
             },
-            options: [
-                { label: "All Business", value: "all" },
-                { label: "Inbound", value: "inbound" },
-                { label: "Sales", value: "sales" },
-            ],
+            options: businessTypeOptions,
         },
         {
             key: "status",
@@ -227,88 +133,76 @@ export default function MySubmittedRequestsPage() {
             },
             options: [
                 { label: "All Status", value: "all" },
-                { label: "In Progress", value: "in-progress" },
-                { label: "Approved", value: "approved" },
-                { label: "Rejected", value: "rejected" },
-                { label: "Cancelled", value: "cancelled" },
+                { label: "In Review", value: "Pending" },
+                { label: "Approved", value: "Approved" },
+                { label: "Rejected", value: "Rejected" },
+                { label: "Withdrawn", value: "Withdrawn" },
             ],
-        },
-        {
-            key: "dateRange",
-            type: "dateRange",
-            value: "Submitted At Range",
         },
     ];
 
-    const columns: DataTableColumn<SubmittedItem>[] = [
+    const columns: DataTableColumn<ApprovalRequest>[] = [
         {
             key: "docNo",
-            title: "Document No",
-            render: (item: SubmittedItem) => (
-                <button className="max-w-[180px] text-left font-bold leading-8 text-[#1557E5] hover:underline">
-                    {item.docNo}
-                </button>
-            ),
+            title: "Document",
+            render: (item) => <DocumentCell item={item} />,
         },
         {
             key: "type",
             title: "Type",
-            render: (item: SubmittedItem) => <TypeBadge type={item.type} />,
+            render: (item) => <TypeBadge type={item.businessType} />,
         },
         {
-            key: "currentApprover",
-            title: "Current Approver",
-            render: (item: SubmittedItem) => {
-                if (item.currentApprover === "Completed" || item.currentApprover === "-") {
-                    return (
-                        <span className="text-[15px] font-semibold text-slate-400">
-                            {item.currentApprover}
-                        </span>
-                    );
-                }
-
-                return (
-                    <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#DFE5FF] text-sm font-bold text-[#4763B4]">
-                            {getInitials(item.currentApprover)}
-                        </div>
-
-                        <div>
-                            <div className="text-[15px] font-semibold leading-5 text-[#183B6B]">
-                                {item.currentApprover}
-                            </div>
-                            <div className="text-xs font-medium text-slate-400">
-                                {item.approverRole}
-                            </div>
-                        </div>
-                    </div>
-                );
-            },
+            key: "summary",
+            title: "Summary",
+            render: (item) => (
+                <div className="max-w-[240px] text-sm font-semibold text-slate-700">{describeRequest(item)}</div>
+            ),
+        },
+        {
+            key: "approver",
+            title: "Approver",
+            render: (item) =>
+                item.status === "Pending" ? (
+                    <span className="text-[14px] font-semibold text-slate-500">Awaiting approver</span>
+                ) : (
+                    <PersonCell name={item.processedByName} sub={item.comment} />
+                ),
         },
         {
             key: "submittedAt",
             title: "Submitted At",
-            className: "text-[15px] font-medium text-slate-500",
-            render: (item: SubmittedItem) => (
-                <span className="whitespace-pre-line">
-                    {item.submittedAt}
-                </span>
-            ),
+            className: "text-[14px] font-medium text-slate-500",
+            render: (item) => formatDateTime(item.submittedAt),
         },
         {
-            key: "lastUpdated",
+            key: "updatedAt",
             title: "Last Updated",
-            className: "text-[15px] font-medium text-slate-500",
-            render: (item: SubmittedItem) => (
-                <span className="whitespace-pre-line">
-                    {item.lastUpdated}
-                </span>
-            ),
+            className: "text-[14px] font-medium text-slate-500",
+            render: (item) => formatDateTime(item.updatedAt),
         },
         {
             key: "status",
             title: "Status",
-            render: (item: SubmittedItem) => <StatusBadge status={item.status} />,
+            render: (item) => <ApprovalStatusBadge status={item.status} overdue={isOverdue(item)} />,
+        },
+        {
+            key: "actions",
+            title: "Actions",
+            render: (item) =>
+                item.status === "Pending" ? (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1"
+                        onClick={() => void handleWithdraw(item)}
+                    >
+                        <Undo2 className="h-4 w-4" />
+                        Withdraw
+                    </Button>
+                ) : (
+                    <span className="text-sm text-slate-400">-</span>
+                ),
         },
     ];
 
@@ -322,28 +216,49 @@ export default function MySubmittedRequestsPage() {
                         {
                             label: "Export All",
                             icon: <Download size={22} strokeWidth={2.2} />,
-                            onClick: () => console.log("Export All clicked")
+                            disabled: filteredData.length === 0,
+                            onClick: () =>
+                                exportToCsv("my-requests", filteredData, [
+                                    { header: "Document No", value: (r) => r.documentNo },
+                                    { header: "Type", value: (r) => r.businessType },
+                                    { header: "Partner", value: (r) => r.partner },
+                                    { header: "Summary", value: (r) => r.summary },
+                                    { header: "Status", value: (r) => r.status },
+                                    { header: "Approver", value: (r) => r.processedByName },
+                                    { header: "Comment", value: (r) => r.comment },
+                                    { header: "Submitted At", value: (r) => r.submittedAt },
+                                    { header: "Last Updated", value: (r) => r.updatedAt },
+                                ]),
                         },
                     ]}
                 />
 
+                {error ? (
+                    <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                        {error}
+                    </div>
+                ) : null}
+
                 <div className="grid gap-5 lg:grid-cols-3">
                     <KpiCard
                         title="Submitted This Month"
-                        value="24"
+                        value={loading ? "..." : String(kpi.thisMonth)}
                         suffix="requests"
                         rightIcon={undefined}
-                        description="↗ 12% increase vs last month"
+                        description={`${items.length} submitted in total`}
                     />
 
                     <KpiCard
-                        title="In Progress"
-                        value="7"
+                        title="In Review"
+                        value={loading ? "..." : String(kpi.pending)}
                         suffix="awaiting review"
                         rightIcon={undefined}
                         footer={
                             <div className="h-2 rounded-full bg-slate-100">
-                                <div className="h-2 w-[34%] rounded-full bg-[#175CFF]" />
+                                <div
+                                    className="h-2 rounded-full bg-[#175CFF] transition-all"
+                                    style={{ width: `${kpi.pendingPercent}%` }}
+                                />
                             </div>
                         }
                     />
@@ -354,36 +269,11 @@ export default function MySubmittedRequestsPage() {
                         rightIcon={undefined}
                         customContent={
                             <div className="mt-2 flex items-center gap-6">
-                                <div>
-                                    <div className="text-5xl font-bold leading-none text-emerald-600">
-                                        14
-                                    </div>
-                                    <div className="mt-2 text-sm font-semibold uppercase tracking-[0.08em] text-slate-400">
-                                        Approved
-                                    </div>
-                                </div>
-
+                                <OutcomeStat value={kpi.approved} label="Approved" className="text-emerald-600" />
                                 <div className="h-14 w-px bg-slate-200" />
-
-                                <div>
-                                    <div className="text-5xl font-bold leading-none text-rose-500">
-                                        3
-                                    </div>
-                                    <div className="mt-2 text-sm font-semibold uppercase tracking-[0.08em] text-slate-400">
-                                        Rejected
-                                    </div>
-                                </div>
-
+                                <OutcomeStat value={kpi.rejected} label="Rejected" className="text-rose-500" />
                                 <div className="h-14 w-px bg-slate-200" />
-
-                                <div>
-                                    <div className="text-5xl font-bold leading-none text-slate-400">
-                                        7
-                                    </div>
-                                    <div className="mt-2 text-sm font-semibold uppercase tracking-[0.08em] text-slate-400">
-                                        Other
-                                    </div>
-                                </div>
+                                <OutcomeStat value={kpi.withdrawn} label="Withdrawn" className="text-slate-400" />
                             </div>
                         }
                     />
@@ -396,8 +286,10 @@ export default function MySubmittedRequestsPage() {
                             variant="ghost"
                             size="icon"
                             className="h-12 w-12 rounded-xl text-slate-500 hover:bg-white"
+                            onClick={() => void reload()}
+                            disabled={loading}
                         >
-                            <Filter className="h-5 w-5" />
+                            <RefreshCw className={cn("h-5 w-5", loading && "animate-spin")} />
                         </Button>
                     }
                 />
@@ -405,12 +297,12 @@ export default function MySubmittedRequestsPage() {
                 <DataTable
                     data={pagedData}
                     columns={columns}
-                    rowKey={(row: SubmittedItem) => row.id}
+                    rowKey={(row) => row.id}
                     selectable={false}
-                    emptyText="No submitted requests found"
+                    emptyText={loading ? "Loading your requests..." : "No submitted requests found"}
                     footerLeft={`Showing ${pagedData.length} of ${filteredData.length} submitted items`}
                     pagination={{
-                        currentPage,
+                        currentPage: safePage,
                         totalPages,
                         totalItems: filteredData.length,
                         pageSize,

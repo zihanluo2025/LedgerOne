@@ -1,3 +1,5 @@
+using MiniErp.Application.Approvals;
+
 namespace MiniErp.Application.Inbounds.Models;
 
 public sealed record InboundDto(
@@ -11,5 +13,10 @@ public sealed record InboundDto(
     int ReceivedQty,
     string Date,
     string Status,
-    DateTime CreatedAt
+    string? Notes,
+    ApprovalStatus? ApprovalStatus,
+    DateTime CreatedAt,
+    string CreatedBy,
+    DateTime UpdatedAt,
+    string UpdatedBy
 );

@@ -171,21 +171,24 @@ export default function CustomerDrawer({
     }, [open, mode, initialData, reset]);
 
     async function submit(values: CustomerFormOutput) {
-        await onSubmit({
-            customerCode: values.customerCode.trim(),
-            customerName: values.customerName.trim(),
-            companyName: values.companyName.trim(),
-            segment: values.segment,
-            contactPerson: values.contactPerson.trim(),
-            contactEmail: values.contactEmail.trim() || null,
-            contactPhone: values.contactPhone.trim() || null,
-            region: values.region.trim(),
-            address: values.address.trim() || null,
-            status: values.status,
-            notes: values.notes.trim() || null,
-        });
-
-        onClose();
+        try {
+            await onSubmit({
+                customerCode: values.customerCode.trim(),
+                customerName: values.customerName.trim(),
+                companyName: values.companyName.trim(),
+                segment: values.segment,
+                contactPerson: values.contactPerson.trim(),
+                contactEmail: values.contactEmail.trim() || null,
+                contactPhone: values.contactPhone.trim() || null,
+                region: values.region.trim(),
+                address: values.address.trim() || null,
+                status: values.status,
+                notes: values.notes.trim() || null,
+            });
+            onClose();
+        } catch {
+            // Keep the drawer open so the user can fix the input; the page reports the error.
+        }
     }
 
     return (

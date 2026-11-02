@@ -1,4 +1,4 @@
-using MiniErp.Application.Orders;
+using MiniErp.Application.Approvals;
 
 namespace MiniErp.Application.Orders.Models;
 
@@ -11,5 +11,9 @@ public sealed record OrderDto(
     string Currency,
     decimal TotalAmount,
     string? Notes,
-    DateTime CreatedAt
+    ApprovalStatus? ApprovalStatus,
+    DateTime CreatedAt,
+    string CreatedBy,
+    DateTime UpdatedAt,
+    string UpdatedBy
 );

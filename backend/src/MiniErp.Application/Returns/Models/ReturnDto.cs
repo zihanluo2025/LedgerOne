@@ -14,5 +14,8 @@ public sealed record ReturnDto(
     int Qty,
     DateTime RequestedAt,
     ReturnStatus Status,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    string CreatedBy,
+    DateTime UpdatedAt,
+    string UpdatedBy
 );

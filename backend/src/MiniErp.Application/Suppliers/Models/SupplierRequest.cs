@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace MiniErp.Application.Suppliers.Models;
 
-public sealed class CreateSupplierRequest
+public abstract class SupplierRequest
 {
     [Required]
     [MaxLength(50)]
@@ -14,7 +14,7 @@ public sealed class CreateSupplierRequest
 
     [Required]
     [MaxLength(100)]
-    public string category { get; set; } = default!;
+    public string PrimaryCategory { get; set; } = default!;
 
     [Required]
     [MaxLength(100)]
@@ -34,7 +34,7 @@ public sealed class CreateSupplierRequest
     [MaxLength(300)]
     public string? Address { get; set; }
 
-    [MaxLength(200)]
+    [MaxLength(255)]
     public string? Website { get; set; }
 
     [Required]
@@ -50,3 +50,7 @@ public sealed class CreateSupplierRequest
     [MaxLength(1000)]
     public string? Notes { get; set; }
 }
+
+public sealed class CreateSupplierRequest : SupplierRequest;
+
+public sealed class UpdateSupplierRequest : SupplierRequest;

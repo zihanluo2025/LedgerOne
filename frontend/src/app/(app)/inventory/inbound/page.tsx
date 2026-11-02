@@ -21,14 +21,18 @@ import DataTable from "@/components/common/data-table";
 import PageHeader from "@/components/common/PageHeader";
 import type { DataTableColumn } from "@/components/common/data-table/types";
 
-import InboundDrawer from "./_components/InboundDrawer";
+import InboundDrawer, { type SupplierOption } from "./_components/InboundDrawer";
 import { useConfirm } from "@/hooks/use-confirm";
 
 import { createInbound, deleteInbound, listInbounds, updateInbound } from "@/lib/apis/inbound";
+import { listSuppliers } from "@/lib/apis/supplier";
+import { exportToCsv } from "@/lib/export";
+import { toastApiError, toastSuccess } from "@/lib/tools/toast";
+import type { ApprovalStatus } from "@/types/approval";
 import type {
-    CreateInboundRequest,
     InboundItem,
     InboundStatus,
+    UpdateInboundRequest,
 } from "@/types/inbound";
 
 type DrawerMode = "create" | "edit";
@@ -43,6 +47,9 @@ type InboundViewItem = {
     receivedQty: number;
     date: string;
     status: InboundStatus;
+    approvalStatus: ApprovalStatus;
+    createdAt: string;
+    updatedAt: string;
 };
 
 function cn(...classes: Array<string | false | undefined>) {
@@ -65,6 +72,9 @@ function mapInboundToViewItem(item: InboundItem): InboundViewItem {
         receivedQty: item.receivedQty ?? 0,
         date: item.date ?? "-",
         status: item.status ?? "Pending",
+        approvalStatus: item.approvalStatus ?? "Approved",
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
     };
 }
 
@@ -91,6 +101,31 @@ function ProgressBar({
                 )}
                 style={{ width: `${percent}%` }}
             />
+        </div>
+    );
+}
+
+function isSameDay(value: string, other: Date) {
+    const date = new Date(value);
+    return (
+        date.getFullYear() === other.getFullYear() &&
+        date.getMonth() === other.getMonth() &&
+        date.getDate() === other.getDate()
+    );
+}
+
+function ApprovalHint({ status }: { status: ApprovalStatus }) {
+    if (status === "Approved") return null;
+
+    const classMap: Record<Exclude<ApprovalStatus, "Approved">, string> = {
+        Pending: "text-amber-600",
+        Rejected: "text-rose-600",
+        Withdrawn: "text-slate-400",
+    };
+
+    return (
+        <div className={cn("mt-1 text-xs font-semibold", classMap[status])}>
+            Approval: {status}
         </div>
     );
 }
@@ -137,6 +172,9 @@ export default function InboundPage() {
     const [drawerMode, setDrawerMode] = useState<DrawerMode>("create");
     const [editingInbound, setEditingInbound] = useState<InboundItem | null>(null);
 
+    const [suppliers, setSuppliers] = useState<SupplierOption[]>([]);
+    const [suppliersLoading, setSuppliersLoading] = useState(true);
+
     const pageSize = 4;
 
     async function loadInbounds() {
@@ -145,28 +183,53 @@ export default function InboundPage() {
             const data = await listInbounds();
             setInbounds(data.items ?? []);
         } catch (error) {
-            console.error("Failed to load inbounds:", error);
+            toastApiError(error, "Failed to load inbounds");
             setInbounds([]);
         } finally {
             setLoading(false);
         }
     }
 
+    async function loadSuppliers() {
+        try {
+            setSuppliersLoading(true);
+            const data = await listSuppliers();
+            setSuppliers(
+                (data.items ?? [])
+                    .filter((s) => s.status !== "Inactive")
+                    .map((s) => ({ id: s.id, name: s.supplierName }))
+            );
+        } catch (error) {
+            toastApiError(error, "Failed to load suppliers");
+        } finally {
+            setSuppliersLoading(false);
+        }
+    }
+
     useEffect(() => {
         loadInbounds();
+        loadSuppliers();
     }, []);
 
     function handleOpenCreate() {
+        setDrawerMode("create");
+        setEditingInbound(null);
         setDrawerOpen(true);
     }
 
-
-
-    async function handleSubmit(values: CreateInboundRequest) {
-        if (drawerMode === "create") {
-            await createInbound(values);
-        } else if (editingInbound) {
-            await updateInbound(editingInbound.id, values);
+    async function handleSubmit(values: UpdateInboundRequest) {
+        try {
+            if (drawerMode === "create") {
+                const { supplierId, warehouse, expectedQty, items, expectedDate, notes } = values;
+                const created = await createInbound({ supplierId, warehouse, expectedQty, items, expectedDate, notes });
+                toastSuccess(`Inbound ${created.inboundNo} created and submitted for approval.`, "Inbound Created");
+            } else if (editingInbound) {
+                await updateInbound(editingInbound.id, values);
+                toastSuccess("Inbound updated successfully.", "Inbound Saved");
+            }
+        } catch (error) {
+            toastApiError(error, "Save Failed");
+            throw error;
         }
 
         setDrawerOpen(false);
@@ -190,9 +253,10 @@ export default function InboundPage() {
 
         try {
             await deleteInbound(inbound.id);
+            toastSuccess(`Inbound ${inbound.inboundNo} has been deleted.`, "Inbound Deleted");
             await loadInbounds();
         } catch (error) {
-            console.error("Failed to delete customer:", error);
+            toastApiError(error, "Delete Failed");
         }
     }
 
@@ -248,12 +312,16 @@ export default function InboundPage() {
         ];
     }, [tableData]);
 
-    const totalInbound = tableData.length;
+    const now = new Date();
+    const totalInbound = tableData.filter((item) => {
+        const created = new Date(item.createdAt);
+        return created.getFullYear() === now.getFullYear() && created.getMonth() === now.getMonth();
+    }).length;
     const pendingReceiving = tableData.filter(
-        (item) => item.status === "Pending"
+        (item) => item.status === "Pending" || item.status === "Partially Received"
     ).length;
-    const receivedToday = tableData.filter((item) =>
-        item.date.toLowerCase().includes("today")
+    const receivedToday = tableData.filter(
+        (item) => item.receivedQty > 0 && isSameDay(item.updatedAt, now)
     ).length;
     const exceptions = tableData.filter(
         (item) => item.status === "Exception"
@@ -316,7 +384,7 @@ export default function InboundPage() {
             render: (item: InboundViewItem) => (
                 <div>
                     <div className="font-semibold">{item.supplier}</div>
-                    <div className="text-xs text-slate-400">ID: {item.supplierId}</div>
+                    <div className="text-xs text-slate-400">{item.warehouse}</div>
                 </div>
             ),
         },
@@ -348,14 +416,19 @@ export default function InboundPage() {
         },
         {
             key: "date",
-            title: "Received At",
+            title: "Expected Date",
             className: "text-[14px] font-medium text-[#5A6B86]",
             render: (item: InboundViewItem) => item.date,
         },
         {
             key: "status",
             title: "Status",
-            render: (item: InboundViewItem) => <StatusBadge status={item.status} />,
+            render: (item: InboundViewItem) => (
+                <div>
+                    <StatusBadge status={item.status} />
+                    <ApprovalHint status={item.approvalStatus} />
+                </div>
+            ),
         },
         {
             key: "actions",
@@ -406,7 +479,18 @@ export default function InboundPage() {
                         {
                             label: "Export",
                             icon: <Download size={22} strokeWidth={2.2} />,
-                            onClick: () => console.log("Export clicked"),
+                            onClick: () =>
+                                exportToCsv("inbounds", filteredData, [
+                                    { header: "Inbound No", value: (r) => r.inboundNo },
+                                    { header: "Supplier", value: (r) => r.supplier },
+                                    { header: "Warehouse", value: (r) => r.warehouse },
+                                    { header: "Items", value: (r) => r.items },
+                                    { header: "Expected Qty", value: (r) => r.expectedQty },
+                                    { header: "Received Qty", value: (r) => r.receivedQty },
+                                    { header: "Expected Date", value: (r) => r.date },
+                                    { header: "Status", value: (r) => r.status },
+                                    { header: "Approval", value: (r) => r.approvalStatus },
+                                ]),
                         },
                         {
                             label: "Create Inbound",
@@ -526,6 +610,10 @@ export default function InboundPage() {
 
                 <InboundDrawer
                     open={drawerOpen}
+                    mode={drawerMode}
+                    initialData={editingInbound}
+                    suppliers={suppliers}
+                    suppliersLoading={suppliersLoading}
                     onClose={() => setDrawerOpen(false)}
                     onSubmit={handleSubmit}
                 />

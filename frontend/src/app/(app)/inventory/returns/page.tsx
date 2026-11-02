@@ -33,6 +33,8 @@ import ReturnDrawer, {
     type ReturnFormValues,
 } from "./_components/ReturnDrawer";
 import { useConfirm } from "@/hooks/use-confirm";
+import { exportToCsv } from "@/lib/export";
+import { toastSuccess } from "@/lib/tools/toast";
 
 function cn(...classes: Array<string | false | undefined>) {
     return classes.filter(Boolean).join(" ");
@@ -123,7 +125,7 @@ export default function ReturnsPage() {
         setLoading(true);
         setError(null);
         try {
-            const res = await listReturns({ limit: 500 });
+            const res = await listReturns();
             setItems(res.items);
         } catch (e) {
             setError(
@@ -227,6 +229,10 @@ export default function ReturnsPage() {
             } else if (drawerRecord) {
                 await updateReturn(drawerRecord.id, values);
             }
+            toastSuccess(
+                drawerMode === "create" ? "Return record created." : "Return record updated.",
+                "Return Saved"
+            );
             await loadData();
         } catch (err) {
             const message =
@@ -253,6 +259,7 @@ export default function ReturnsPage() {
         setError(null);
         try {
             await deleteReturn(row.id);
+            toastSuccess(`Return ${row.returnNo} has been deleted.`, "Return Deleted");
             await loadData();
         } catch (err) {
             setError(
@@ -352,18 +359,18 @@ export default function ReturnsPage() {
                             icon: (
                                 <Download size={22} strokeWidth={2.2} />
                             ),
-                            onClick: () => {
-                                const blob = new Blob(
-                                    [JSON.stringify(filteredData, null, 2)],
-                                    { type: "application/json" }
-                                );
-                                const url = URL.createObjectURL(blob);
-                                const a = document.createElement("a");
-                                a.href = url;
-                                a.download = "returns-export.json";
-                                a.click();
-                                URL.revokeObjectURL(url);
-                            },
+                            onClick: () =>
+                                exportToCsv("returns", filteredData, [
+                                    { header: "Return No", value: (r) => r.returnNo },
+                                    { header: "Type", value: (r) => r.type },
+                                    { header: "Partner", value: (r) => r.partnerName },
+                                    { header: "Partner Role", value: (r) => r.partnerRole },
+                                    { header: "Product", value: (r) => r.productName },
+                                    { header: "Product Details", value: (r) => r.productMeta },
+                                    { header: "Qty", value: (r) => r.qty },
+                                    { header: "Requested At", value: (r) => r.requestedAt.slice(0, 10) },
+                                    { header: "Status", value: (r) => r.status },
+                                ]),
                         },
                         {
                             label: "Create Return",

@@ -1,69 +1,51 @@
-import { apiFetch } from "@/lib/api";
+import { apiFetch, type Paged } from "@/lib/api";
 import type {
-    Supplier,
-    CreateSupplierRequest,
-    UpdateSupplierRequest,
+  Supplier,
+  CreateSupplierRequest,
+  UpdateSupplierRequest,
 } from "@/types/supplier";
 
-// POST /suppliers -> 201 Created { id }
-export function createSupplier(payload: CreateSupplierRequest) {
-    return apiFetch<{ id: string }>(
-        "/api/suppliers",
-        { method: "POST", body: JSON.stringify(payload) }
-    );
-}
+const BASE = "/api/suppliers";
 
-// GET /suppliers/{id} -> Supplier
-export function getSupplier(id: string) {
-    return apiFetch<Supplier>(`/api/suppliers/${encodeURIComponent(id)}`);
-}
-
-// GET /suppliers -> { items: Supplier[] }
 export function listSuppliers(params?: {
-    keyword?: string;
-    limit?: number;
-    cursor?: string;
+  keyword?: string;
+  status?: string;
+  region?: string;
+  category?: string;
+  riskLevel?: string;
+  limit?: number;
+  cursor?: string;
 }) {
-    return apiFetch<{ items: Supplier[] }>(
-        "/api/suppliers",
-        undefined,
-        {
-            keyword: params?.keyword,
-            limit: params?.limit ?? 50,
-            cursor: params?.cursor,
-        }
-    );
+  return apiFetch<Paged<Supplier>>(BASE, undefined, {
+    keyword: params?.keyword,
+    status: params?.status,
+    region: params?.region,
+    category: params?.category,
+    riskLevel: params?.riskLevel,
+    limit: params?.limit ?? 1000,
+    cursor: params?.cursor,
+  });
 }
 
-// GET /suppliers/page -> { items, nextCursor }
-export function pageSuppliers(params?: {
-    keyword?: string;
-    limit?: number;
-    cursor?: string;
-}) {
-    return apiFetch<{ items: Supplier[]; nextCursor?: string | null }>(
-        "/api/suppliers/page",
-        undefined,
-        {
-            keyword: params?.keyword,
-            limit: params?.limit ?? 50,
-            cursor: params?.cursor,
-        }
-    );
+export function getSupplier(id: string) {
+  return apiFetch<Supplier>(`${BASE}/${encodeURIComponent(id)}`);
 }
 
-// PUT /suppliers/{id} -> 204
+export function createSupplier(payload: CreateSupplierRequest) {
+  return apiFetch<Supplier>(BASE, { method: "POST", body: JSON.stringify(payload) });
+}
+
 export function updateSupplier(id: string, payload: UpdateSupplierRequest) {
-    return apiFetch<void>(
-        `/api/suppliers/${encodeURIComponent(id)}`,
-        { method: "PUT", body: JSON.stringify(payload) }
-    );
+  return apiFetch<Supplier>(`${BASE}/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
 }
 
-// DELETE /suppliers/{id} -> 204
 export function deleteSupplier(id: string) {
-    return apiFetch<void>(
-        `/api/suppliers/${encodeURIComponent(id)}`,
-        { method: "DELETE" }
-    );
+  return apiFetch<void>(`${BASE}/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export function bulkDeleteSuppliers(ids: string[]) {
+  return apiFetch<void>(`${BASE}/bulk-delete`, { method: "POST", body: JSON.stringify({ ids }) });
 }

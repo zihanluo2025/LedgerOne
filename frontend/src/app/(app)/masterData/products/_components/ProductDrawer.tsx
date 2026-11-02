@@ -117,15 +117,19 @@ export default function ProductDrawer({
     }, [open, mode, initialData, reset]);
 
     async function submit(values: ProductFormOutput) {
-        await onSubmit({
-            name: values.name.trim(),
-            supplier: values.supplier.trim(),
-            origin: values.origin.trim(),
-            price: values.price,
-            stock: values.stock,
-            status: values.status,
-        });
-        onClose();
+        try {
+            await onSubmit({
+                name: values.name.trim(),
+                supplier: values.supplier.trim(),
+                origin: values.origin.trim(),
+                price: values.price,
+                stock: values.stock,
+                status: values.status,
+            });
+            onClose();
+        } catch {
+            // Keep the drawer open so the user can fix the input; the page reports the error.
+        }
     }
 
     if (!open) return null;

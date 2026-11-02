@@ -2,16 +2,11 @@
 
 import { Bell, AlertTriangle, RefreshCw } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-
-type NoticeItem = {
-    title: string;
-    content: string;
-    tag: "NEW" | "ALERT" | "UPDATE";
-    time: string;
-};
+import type { NoticeItem } from "@/lib/dashboard/view-model";
 
 type NoticeListCardProps = {
     items: NoticeItem[];
+    loading?: boolean;
 };
 
 const noticeStyles: Record<
@@ -51,7 +46,7 @@ const noticeStyles: Record<
     },
 };
 
-export default function NoticeListCard({ items }: NoticeListCardProps) {
+export default function NoticeListCard({ items, loading }: NoticeListCardProps) {
     return (
         <Card className="rounded-lg bg-[#EFF4FF] shadow-none">
             <CardContent className="p-6">
@@ -62,14 +57,19 @@ export default function NoticeListCard({ items }: NoticeListCardProps) {
                         </span>
                     </div>
 
-                    <button
-                        type="button"
-                        className="text-[14px] font-medium text-[#2f5d9b] transition hover:text-[#163d73]"
-                    >
-                        View Archive
-                    </button>
                 </div>
 
+                {loading ? (
+                    <div className="grid gap-4 xl:grid-cols-3">
+                        {Array.from({ length: 3 }, (_, i) => (
+                            <div key={i} className="h-36 animate-pulse rounded-sm bg-white" />
+                        ))}
+                    </div>
+                ) : items.length === 0 ? (
+                    <p className="rounded-sm bg-white p-5 text-[14px] text-[#6e7f99]">
+                        All clear — no alerts or recent activity.
+                    </p>
+                ) : (
                 <div className="grid gap-4 xl:grid-cols-3">
                     {items.map((item) => {
                         const style = noticeStyles[item.tag];
@@ -125,6 +125,7 @@ export default function NoticeListCard({ items }: NoticeListCardProps) {
                         );
                     })}
                 </div>
+                )}
             </CardContent>
         </Card>
     );

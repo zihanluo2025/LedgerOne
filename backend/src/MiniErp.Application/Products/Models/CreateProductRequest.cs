@@ -15,5 +15,6 @@ public sealed record CreateProductRequest(
 public enum ProductStatus
 {
     Active = 0,
-    Inactive = 1
+    Inactive = 1,
+    Draft = 2
 }

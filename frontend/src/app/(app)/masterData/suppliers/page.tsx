@@ -7,7 +7,6 @@ import {
     Download,
     Filter,
     Plus,
-    Upload,
     Users,
     ClipboardList,
     Trash2,
@@ -24,6 +23,8 @@ import { DataTableColumn } from "@/components/common/data-table/types";
 import SupplierDrawer from "./_components/SupplierDrawer";
 
 import { useConfirm } from "@/hooks/use-confirm";
+import { exportToCsv } from "@/lib/export";
+import { toastApiError, toastSuccess } from "@/lib/tools/toast";
 
 import type {
     Supplier,
@@ -201,7 +202,7 @@ export default function SuppliersPage() {
             const data = await listSuppliers();
             setSuppliers(data.items ?? []);
         } catch (error) {
-            console.error("Failed to load suppliers:", error);
+            toastApiError(error, "Failed to load suppliers");
             setSuppliers([]);
         } finally {
             setLoading(false);
@@ -237,19 +238,29 @@ export default function SuppliersPage() {
 
         try {
             await deleteSupplier(supplier.id);
+            toastSuccess(`"${supplier.supplierName}" has been deleted.`, "Supplier Deleted");
             await loadSuppliers();
         } catch (error) {
-            console.error("Failed to delete supplier:", error);
+            toastApiError(error, "Delete Failed");
         }
     }
 
     async function handleSubmit(values: SupplierFormValues) {
-        if (drawerMode === "create") {
-            await createSupplier(values);
-        } else if (editingSupplier) {
-            await updateSupplier(editingSupplier.id, values);
+        try {
+            if (drawerMode === "create") {
+                await createSupplier(values);
+            } else if (editingSupplier) {
+                await updateSupplier(editingSupplier.id, values);
+            }
+        } catch (error) {
+            toastApiError(error, "Save Failed");
+            throw error;
         }
 
+        toastSuccess(
+            drawerMode === "create" ? "Supplier created successfully." : "Supplier updated successfully.",
+            "Supplier Saved"
+        );
         setDrawerOpen(false);
         await loadSuppliers();
     }
@@ -463,14 +474,19 @@ export default function SuppliersPage() {
                     description="Manage your strategic partnerships, contact details with precision and oversight."
                     actions={[
                         {
-                            label: "Import",
-                            icon: <Upload size={22} strokeWidth={2.2} />,
-                            onClick: () => console.log("Import clicked"),
-                        },
-                        {
                             label: "Export",
                             icon: <Download size={22} strokeWidth={2.2} />,
-                            onClick: () => console.log("Export clicked"),
+                            onClick: () => exportToCsv("suppliers", filteredData, [
+                                { header: "Code", value: (r) => r.supplierCode },
+                                { header: "Name", value: (r) => r.supplierName },
+                                { header: "Category", value: (r) => r.primaryCategory },
+                                { header: "Contact", value: (r) => r.contactPerson },
+                                { header: "Email", value: (r) => r.contactEmail },
+                                { header: "Region", value: (r) => r.region },
+                                { header: "Status", value: (r) => r.status },
+                                { header: "Risk", value: (r) => r.riskLevel },
+                                { header: "Last Order", value: (r) => r.lastOrderDate },
+                            ]),
                         },
                         {
                             label: "Add Supplier",

@@ -1,3 +1,5 @@
+import type { ApprovalStatus } from "@/types/approval";
+
 export type InboundStatus =
   | "Completed"
   | "Partially Received"
@@ -15,14 +17,10 @@ export type InboundItem = {
   receivedQty: number;
   date: string;
   status: InboundStatus;
-};
-
-export type InboundListResponse = {
-  items: InboundItem[];
-  totalCount?: number;
-  page?: number;
-  pageSize?: number;
-  nextCursor?: string | null;
+  notes?: string | null;
+  approvalStatus?: ApprovalStatus | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type CreateInboundRequest = {
@@ -34,11 +32,7 @@ export type CreateInboundRequest = {
   notes?: string;
 };
 
-export type CreateInboundFormValues = {
-  supplierId: string;
-  warehouse: string;
-  expectedQty: string;
-  items: string;
-  expectedDate: string;
-  notes: string;
+export type UpdateInboundRequest = CreateInboundRequest & {
+  receivedQty: number;
+  hasException: boolean;
 };
