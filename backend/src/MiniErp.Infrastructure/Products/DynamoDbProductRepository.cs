@@ -76,35 +76,32 @@ public sealed class DynamoDbProductRepository : IProductRepository
 
     public async Task<IReadOnlyList<ProductDto>> ListAsync(string orgId, string? keyword, int limit, string? cursor, CancellationToken ct)
     {
-        var resp = await _ddb.QueryAsync(new QueryRequest
+        var safeLimit = Math.Clamp(limit, 1, 1000);
+        var results = new List<ProductDto>();
+        var startKey = DecodeCursor(cursor);
+
+        // Keep paging until enough non-deleted, keyword-matching rows are collected.
+        do
         {
-            TableName = _table,
-            KeyConditionExpression = "PK = :pk AND begins_with(SK, :prefix)",
-            ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+            var resp = await _ddb.QueryAsync(new QueryRequest
             {
-                [":pk"] = new AttributeValue { S = Pk(orgId) },
-                [":prefix"] = new AttributeValue { S = "PRODUCT#" }
-            },
-            Limit = Math.Clamp(limit, 1, 200),
-            ScanIndexForward = false
-        }, ct);
+                TableName = _table,
+                KeyConditionExpression = "PK = :pk AND begins_with(SK, :prefix)",
+                ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+                {
+                    [":pk"] = new AttributeValue { S = Pk(orgId) },
+                    [":prefix"] = new AttributeValue { S = "PRODUCT#" }
+                },
+                ScanIndexForward = false,
+                ExclusiveStartKey = startKey
+            }, ct);
 
-        IEnumerable<ProductDto> q = resp.Items
-            .Select(MapToDto)
-            .Where(x => !x.IsDeleted);
-
-        if (!string.IsNullOrWhiteSpace(keyword))
-        {
-            var k = keyword.Trim();
-            q = q.Where(x =>
-                x.Name.Contains(k, StringComparison.OrdinalIgnoreCase) ||
-                (x.Supplier ?? "").Contains(k, StringComparison.OrdinalIgnoreCase) ||
-                (x.Origin ?? "").Contains(k, StringComparison.OrdinalIgnoreCase)
-            );
+            results.AddRange(Filter(resp.Items.Select(MapToDto), keyword));
+            startKey = resp.LastEvaluatedKey is { Count: > 0 } ? resp.LastEvaluatedKey : null;
         }
+        while (startKey is not null && results.Count < safeLimit);
 
-        // NOTE: cursor ignored in this simple ListAsync implementation
-        return q.Take(limit).ToList();
+        return results.Take(safeLimit).ToList();
     }
 
     public async Task<PagedResult<ProductDto>> PageListAsync(
@@ -135,22 +132,7 @@ public sealed class DynamoDbProductRepository : IProductRepository
 
         var resp = await _ddb.QueryAsync(req, ct);
 
-        IEnumerable<ProductDto> q = resp.Items
-            .Select(MapToDto)
-            .Where(x => !x.IsDeleted);
-
-        if (!string.IsNullOrWhiteSpace(keyword))
-        {
-            var k = keyword.Trim();
-            q = q.Where(x =>
-                x.Name.Contains(k, StringComparison.OrdinalIgnoreCase) ||
-                (x.Supplier ?? "").Contains(k, StringComparison.OrdinalIgnoreCase) ||
-                (x.Origin ?? "").Contains(k, StringComparison.OrdinalIgnoreCase)
-            );
-        }
-
-        // IMPORTANT: use ToList() to match PagedResult constructor expectations
-        var items = q.ToList();
+        var items = Filter(resp.Items.Select(MapToDto), keyword).ToList();
 
         string? nextCursor = (resp.LastEvaluatedKey is { Count: > 0 })
             ? EncodeCursor(resp.LastEvaluatedKey)
@@ -178,6 +160,18 @@ public sealed class DynamoDbProductRepository : IProductRepository
         };
 
         await UpdateAsync(orgId, deleted, ct);
+    }
+
+    private static IEnumerable<ProductDto> Filter(IEnumerable<ProductDto> items, string? keyword)
+    {
+        var q = items.Where(x => !x.IsDeleted);
+        if (string.IsNullOrWhiteSpace(keyword)) return q;
+
+        var k = keyword.Trim();
+        return q.Where(x =>
+            x.Name.Contains(k, StringComparison.OrdinalIgnoreCase) ||
+            (x.Supplier ?? "").Contains(k, StringComparison.OrdinalIgnoreCase) ||
+            (x.Origin ?? "").Contains(k, StringComparison.OrdinalIgnoreCase));
     }
 
     private static ProductDto MapToDto(Dictionary<string, AttributeValue> item)

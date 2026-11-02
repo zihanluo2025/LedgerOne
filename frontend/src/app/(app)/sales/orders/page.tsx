@@ -32,6 +32,9 @@ import {
     listOrders,
     updateOrder,
 } from "@/lib/apis/orders";
+import { exportToCsv } from "@/lib/export";
+import { toastSuccess } from "@/lib/tools/toast";
+import type { ApprovalStatus } from "@/types/approval";
 import type { OrderRecord, OrderStatus } from "@/types/order";
 
 function cn(...classes: Array<string | false | undefined>) {
@@ -62,6 +65,22 @@ function formatMoney(amount: number, currency: string) {
     } catch {
         return `${currency} ${amount.toFixed(2)}`;
     }
+}
+
+function ApprovalHint({ status }: { status?: ApprovalStatus | null }) {
+    if (!status || status === "Approved") return null;
+
+    const classMap: Record<Exclude<ApprovalStatus, "Approved">, string> = {
+        Pending: "text-amber-600",
+        Rejected: "text-rose-600",
+        Withdrawn: "text-slate-400",
+    };
+
+    return (
+        <div className={cn("mt-1 text-xs font-semibold", classMap[status])}>
+            Approval: {status}
+        </div>
+    );
 }
 
 function StatusBadge({ status }: { status: OrderStatus }) {
@@ -115,7 +134,7 @@ export default function OrdersPage() {
         setLoading(true);
         setError(null);
         try {
-            const res = await listOrders({ limit: 500 });
+            const res = await listOrders();
             setItems(res.items);
         } catch (e) {
             setError(
@@ -239,6 +258,7 @@ export default function OrdersPage() {
                     totalAmount: Number(values.totalAmount),
                     notes: values.notes || null,
                 });
+                toastSuccess("Order created and submitted for approval.", "Order Created");
             } else if (drawerRecord) {
                 await updateOrder(drawerRecord.id, {
                     customerName: values.customerName,
@@ -248,6 +268,7 @@ export default function OrdersPage() {
                     totalAmount: Number(values.totalAmount),
                     notes: values.notes || null,
                 });
+                toastSuccess("Order updated successfully.", "Order Saved");
             }
             await loadData();
         } catch (err) {
@@ -275,6 +296,7 @@ export default function OrdersPage() {
         setError(null);
         try {
             await deleteOrder(row.id);
+            toastSuccess(`Order ${row.orderNo} has been deleted.`, "Order Deleted");
             await loadData();
         } catch (err) {
             setError(
@@ -322,7 +344,12 @@ export default function OrdersPage() {
         {
             key: "status",
             title: "Status",
-            render: (item: OrderRecord) => <StatusBadge status={item.status} />,
+            render: (item: OrderRecord) => (
+                <div>
+                    <StatusBadge status={item.status} />
+                    <ApprovalHint status={item.approvalStatus} />
+                </div>
+            ),
         },
         {
             key: "actions",
@@ -365,18 +392,17 @@ export default function OrdersPage() {
                         {
                             label: "Export",
                             icon: <Download size={22} strokeWidth={2.2} />,
-                            onClick: () => {
-                                const blob = new Blob(
-                                    [JSON.stringify(filteredData, null, 2)],
-                                    { type: "application/json" }
-                                );
-                                const url = URL.createObjectURL(blob);
-                                const a = document.createElement("a");
-                                a.href = url;
-                                a.download = "sales-orders-export.json";
-                                a.click();
-                                URL.revokeObjectURL(url);
-                            },
+                            onClick: () =>
+                                exportToCsv("sales-orders", filteredData, [
+                                    { header: "Order No", value: (r) => r.orderNo },
+                                    { header: "Customer", value: (r) => r.customerName },
+                                    { header: "Order Date", value: (r) => r.orderDate.slice(0, 10) },
+                                    { header: "Status", value: (r) => r.status },
+                                    { header: "Approval", value: (r) => r.approvalStatus ?? "Approved" },
+                                    { header: "Currency", value: (r) => r.currency },
+                                    { header: "Total Amount", value: (r) => r.totalAmount.toFixed(2) },
+                                    { header: "Notes", value: (r) => r.notes },
+                                ]),
                         },
                         {
                             label: "Create Order",

@@ -8,7 +8,6 @@ import {
     Filter,
     Package,
     Plus,
-    Upload,
     XCircle,
     Pencil, Trash2
 } from "lucide-react";
@@ -23,6 +22,8 @@ import PageHeader from "@/components/common/PageHeader";
 import ProductDrawer from "./_components/ProductDrawer";
 
 import { useConfirm } from "@/hooks/use-confirm";
+import { exportToCsv } from "@/lib/export";
+import { toastApiError, toastSuccess } from "@/lib/tools/toast";
 
 import {
     createProduct,
@@ -200,7 +201,7 @@ export default function ProductsPage() {
             const data = await listProducts();
             setProducts(data.items ?? []);
         } catch (error) {
-            console.error("Failed to load products:", error);
+            toastApiError(error, "Failed to load products");
             setProducts([]);
         } finally {
             setLoading(false);
@@ -236,19 +237,29 @@ export default function ProductsPage() {
 
         try {
             await deleteProduct(product.id);
+            toastSuccess(`"${product.name}" has been deleted.`, "Product Deleted");
             await loadProducts();
         } catch (error) {
-            console.error("Failed to delete product:", error);
+            toastApiError(error, "Delete Failed");
         }
     }
 
     async function handleSubmit(values: ProductFormValues) {
-        if (drawerMode === "create") {
-            await createProduct(values);
-        } else if (editingProduct) {
-            await updateProduct(editingProduct.id, values);
+        try {
+            if (drawerMode === "create") {
+                await createProduct(values);
+            } else if (editingProduct) {
+                await updateProduct(editingProduct.id, values);
+            }
+        } catch (error) {
+            toastApiError(error, "Save Failed");
+            throw error;
         }
 
+        toastSuccess(
+            drawerMode === "create" ? "Product created successfully." : "Product updated successfully.",
+            "Product Saved"
+        );
         setDrawerOpen(false);
         await loadProducts();
     }
@@ -481,14 +492,17 @@ export default function ProductsPage() {
                     description="Product catalog, pricing with architectural precision across your global inventory."
                     actions={[
                         {
-                            label: "Import",
-                            icon: <Upload size={22} strokeWidth={2.2} />,
-                            onClick: () => console.log("Import clicked"),
-                        },
-                        {
                             label: "Export",
                             icon: <Download size={22} strokeWidth={2.2} />,
-                            onClick: () => console.log("Export clicked"),
+                            onClick: () => exportToCsv("products", filteredData, [
+                                { header: "Name", value: (r) => r.name },
+                                { header: "Supplier", value: (r) => r.supplier },
+                                { header: "Category", value: (r) => r.category },
+                                { header: "Price", value: (r) => r.price.toFixed(2) },
+                                { header: "Stock", value: (r) => r.stock },
+                                { header: "Stock Status", value: (r) => getStockStatus(r.stock) },
+                                { header: "Updated", value: (r) => r.updatedAt },
+                            ]),
                         },
                         {
                             label: "Add Product",

@@ -1,244 +1,165 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-    Download,
-    Filter,
-    TrendingDown,
-} from "lucide-react";
+import { Download, RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import DataFilterBar from "@/components/common/data-filter-bar";
 import type { FilterField } from "@/components/common/data-filter-bar/types";
-
 import KpiCard from "@/components/common/kpi-card";
 import DataTable from "@/components/common/data-table";
 import PageHeader from "@/components/common/PageHeader";
-import { DataTableColumn } from "@/components/common/data-table/types";
+import type { DataTableColumn } from "@/components/common/data-table/types";
 
+import { exportToCsv } from "@/lib/export";
+import type { ApprovalRequest } from "@/types/approval";
 
-type CompleteItem = {
-    id: string;
-    docNo: string;
-    type: "Inbound" | "Sales";
-    requester: string;
-    summary: string;
-    completedAt: string;
-    processingTime: string;
-    outcome: "Approved" | "Rejected";
-};
+import { useApprovals } from "../_components/use-approvals";
+import {
+    ApprovalStatusBadge,
+    businessTypeOptions,
+    cn,
+    DocumentCell,
+    formatDateTime,
+    formatDuration,
+    hoursBetween,
+    isThisMonth,
+    OutcomeStat,
+    PersonCell,
+    TypeBadge,
+} from "../_components/shared";
 
-const completeData: CompleteItem[] = [
-    {
-        id: "1",
-        docNo: "INB-20260401-005",
-        type: "Inbound",
-        requester: "James D.",
-        summary: "500x Steel Chassis, Main Warehouse",
-        completedAt: "Apr 05, 14:30",
-        processingTime: "2.4h",
-        outcome: "Approved",
-    },
-    {
-        id: "2",
-        docNo: "SAL-20260401-012",
-        type: "Sales",
-        requester: "Sarah K.",
-        summary: "Priority Shipment: Electronics",
-        completedAt: "Apr 05, 11:20",
-        processingTime: "5.1h",
-        outcome: "Rejected",
-    },
-    {
-        id: "5",
-        docNo: "INB-20260327-072",
-        type: "Inbound",
-        requester: "Alice M.",
-        summary: "Replacement Sensors for North Wing",
-        completedAt: "Apr 03, 17:10",
-        processingTime: "2.1h",
-        outcome: "Approved",
-    },
-    {
-        id: "6",
-        docNo: "SAL-20260327-061",
-        type: "Sales",
-        requester: "John C.",
-        summary: "Bulk Component Purchase - Tech Supply",
-        completedAt: "Apr 03, 10:40",
-        processingTime: "6.2h",
-        outcome: "Rejected",
-    },
-];
-
-function cn(...classes: Array<string | false | undefined>) {
-    return classes.filter(Boolean).join(" ");
+// Processing time from submission to decision, in hours.
+function processingHours(item: ApprovalRequest) {
+    return item.processedAt ? hoursBetween(item.submittedAt, item.processedAt) : NaN;
 }
 
-function getInitials(name: string) {
-    return name
-        .split(" ")
-        .map((part) => part[0])
-        .join("")
-        .slice(0, 2)
-        .toUpperCase();
-}
+const TARGET_HOURS = 6;
 
-function TypeBadge({ type }: { type: CompleteItem["type"] }) {
-    const isInbound = type === "Inbound";
+export default function CompletedApprovalsPage() {
+    const { items, loading, error, reload } = useApprovals("Completed");
 
-    return (
-        <span
-            className={cn(
-                "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
-                isInbound
-                    ? "bg-[#DCEBFF] text-[#2D6BCF]"
-                    : "bg-[#E8DFFC] text-[#6C5AAE]"
-            )}
-        >
-            {type.toUpperCase()}
-        </span>
-    );
-}
-
-function OutcomeBadge({ outcome }: { outcome: CompleteItem["outcome"] }) {
-    const approved = outcome === "Approved";
-
-    return (
-        <span
-            className={cn(
-                "inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-bold",
-                approved
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                    : "border-rose-200 bg-rose-50 text-rose-600"
-            )}
-        >
-            <span
-                className={cn(
-                    "h-2 w-2 rounded-full",
-                    approved ? "bg-emerald-500" : "bg-rose-500"
-                )}
-            />
-            {outcome.toUpperCase()}
-        </span>
-    );
-}
-
-
-
-export default function MyCompletePage() {
     const [search, setSearch] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const [type, setType] = useState("all");
-    const [priority, setPriority] = useState("all");
+    const [outcome, setOutcome] = useState("all");
 
-    const pageSize = 4;
+    const pageSize = 8;
 
     const filteredData = useMemo(() => {
         const keyword = search.trim().toLowerCase();
 
-        if (!keyword) return completeData;
+        return items.filter((item) => {
+            const matchKeyword =
+                !keyword ||
+                item.documentNo.toLowerCase().includes(keyword) ||
+                item.requesterName.toLowerCase().includes(keyword) ||
+                (item.processedByName ?? "").toLowerCase().includes(keyword) ||
+                item.summary.toLowerCase().includes(keyword);
 
-        return completeData.filter(
-            (item) =>
-                item.docNo.toLowerCase().includes(keyword) ||
-                item.requester.toLowerCase().includes(keyword) ||
-                item.summary.toLowerCase().includes(keyword)
-        );
-    }, [search]);
+            const matchType = type === "all" || item.businessType === type;
+            const matchOutcome = outcome === "all" || item.status === outcome;
+
+            return matchKeyword && matchType && matchOutcome;
+        });
+    }, [items, search, type, outcome]);
+
+    const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
+    const safePage = Math.min(currentPage, totalPages);
+
+    const pagedData = useMemo(() => {
+        const start = (safePage - 1) * pageSize;
+        return filteredData.slice(start, start + pageSize);
+    }, [filteredData, safePage]);
+
+    const kpi = useMemo(() => {
+        const thisMonth = items.filter((item) => isThisMonth(item.processedAt));
+        const durations = items.map(processingHours).filter(Number.isFinite);
+        const avg = durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length : NaN;
+
+        return {
+            thisMonth: thisMonth.length,
+            avg,
+            approved: items.filter((item) => item.status === "Approved").length,
+            rejected: items.filter((item) => item.status === "Rejected").length,
+        };
+    }, [items]);
 
     const filterFields: FilterField[] = [
         {
             key: "search",
             type: "search",
             value: search,
-            onChange: setSearch,
-            placeholder: "Search Doc No, Requester...",
+            onChange: (value) => {
+                setSearch(value);
+                setCurrentPage(1);
+            },
+            placeholder: "Search Doc No, Requester, Approver...",
         },
         {
             key: "type",
             type: "select",
             label: "Type",
             value: type,
-            onChange: setType,
-            options: [
-                { label: "All Business", value: "all" },
-                { label: "Inbound", value: "inbound" },
-                { label: "Sales", value: "sales" },
-            ],
+            onChange: (value) => {
+                setType(value);
+                setCurrentPage(1);
+            },
+            options: businessTypeOptions,
         },
         {
-            key: "priority",
+            key: "outcome",
             type: "select",
-            label: "Priority",
-            value: priority,
-            onChange: setPriority,
+            label: "Outcome",
+            value: outcome,
+            onChange: (value) => {
+                setOutcome(value);
+                setCurrentPage(1);
+            },
             options: [
-                { label: "All", value: "all" },
-                { label: "Urgent", value: "urgent" },
-                { label: "Normal", value: "normal" },
+                { label: "All Outcomes", value: "all" },
+                { label: "Approved", value: "Approved" },
+                { label: "Rejected", value: "Rejected" },
             ],
-        },
-        {
-            key: "dateRange",
-            type: "dateRange",
-            value: "Apr 01 - Apr 30",
         },
     ];
 
-    const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
-
-    const pagedData = useMemo(() => {
-        const start = (currentPage - 1) * pageSize;
-        return filteredData.slice(start, start + pageSize);
-    }, [filteredData, currentPage]);
-
-    const columns: DataTableColumn<CompleteItem>[] = [
+    const columns: DataTableColumn<ApprovalRequest>[] = [
         {
             key: "docNo",
-            title: "Document No",
-            render: (item: CompleteItem) => (
-                <button className="max-w-[180px] text-left  font-bold leading-8 text-[#1557E5] hover:underline">
-                    {item.docNo}
-                </button>
-            ),
+            title: "Document",
+            render: (item) => <DocumentCell item={item} />,
         },
         {
             key: "type",
             title: "Type",
-            render: (item: CompleteItem) => <TypeBadge type={item.type} />,
+            render: (item) => <TypeBadge type={item.businessType} />,
         },
         {
             key: "requester",
             title: "Requester",
-            render: (item: CompleteItem) => (
-                <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#DFE5FF] text-sm font-bold text-[#4763B4]">
-                        {getInitials(item.requester)}
-                    </div>
-                    <span className="max-w-[82px] text-[15px] font-semibold leading-6 text-slate-700">
-                        {item.requester}
-                    </span>
-                </div>
-            ),
+            render: (item) => <PersonCell name={item.requesterName} />,
         },
-
+        {
+            key: "processedBy",
+            title: "Processed By",
+            render: (item) => <PersonCell name={item.processedByName} />,
+        },
         {
             key: "completedAt",
             title: "Completed At",
-            className: "text-[15px] font-medium text-slate-500",
-            render: (item: CompleteItem) => item.completedAt,
+            className: "text-[14px] font-medium text-slate-500",
+            render: (item) => formatDateTime(item.processedAt),
         },
         {
             key: "processingTime",
             title: "Proc. Time",
             className: "text-[15px] font-semibold",
-            render: (item: CompleteItem) => {
-                const value = parseFloat(item.processingTime);
-
+            render: (item) => {
+                const hours = processingHours(item);
                 return (
-                    <span className={cn(value <= 3 ? "text-emerald-600" : "text-orange-500")}>
-                        {item.processingTime}
+                    <span className={cn(hours <= TARGET_HOURS ? "text-emerald-600" : "text-orange-500")}>
+                        {formatDuration(hours)}
                     </span>
                 );
             },
@@ -246,7 +167,16 @@ export default function MyCompletePage() {
         {
             key: "outcome",
             title: "Outcome",
-            render: (item: CompleteItem) => <OutcomeBadge outcome={item.outcome} />,
+            render: (item) => (
+                <div className="max-w-[220px]">
+                    <ApprovalStatusBadge status={item.status} />
+                    {item.comment ? (
+                        <div className="mt-1 truncate text-xs text-slate-500" title={item.comment}>
+                            “{item.comment}”
+                        </div>
+                    ) : null}
+                </div>
+            ),
         },
     ];
 
@@ -254,37 +184,50 @@ export default function MyCompletePage() {
         <div className="min-h-screen bg-[#F6F8FC]">
             <div className="mx-auto w-full max-w-[1440px] space-y-6">
                 <PageHeader
-                    title="My Completed Approvals"
-                    description="Review completed approval records and processing outcomes from
-                            your historical audit trail."
+                    title="Completed Approvals"
+                    description="Review completed approval records and processing outcomes from the audit trail."
                     actions={[
                         {
                             label: "Export All",
                             icon: <Download size={22} strokeWidth={2.2} />,
-                            onClick: () => console.log("Export All clicked")
+                            disabled: filteredData.length === 0,
+                            onClick: () =>
+                                exportToCsv("completed-approvals", filteredData, [
+                                    { header: "Document No", value: (r) => r.documentNo },
+                                    { header: "Type", value: (r) => r.businessType },
+                                    { header: "Partner", value: (r) => r.partner },
+                                    { header: "Summary", value: (r) => r.summary },
+                                    { header: "Requester", value: (r) => r.requesterName },
+                                    { header: "Processed By", value: (r) => r.processedByName },
+                                    { header: "Submitted At", value: (r) => r.submittedAt },
+                                    { header: "Completed At", value: (r) => r.processedAt },
+                                    { header: "Processing Hours", value: (r) => processingHours(r).toFixed(2) },
+                                    { header: "Outcome", value: (r) => r.status },
+                                    { header: "Comment", value: (r) => r.comment },
+                                ]),
                         },
                     ]}
                 />
 
+                {error ? (
+                    <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                        {error}
+                    </div>
+                ) : null}
+
                 <div className="grid gap-5 lg:grid-cols-3">
                     <KpiCard
                         title="Completed This Month"
-                        value="32"
+                        value={loading ? "..." : String(kpi.thisMonth)}
                         suffix="items"
                         rightIcon={undefined}
                     />
 
                     <KpiCard
                         title="Avg. Completion Time"
-                        value="3.6"
-                        suffix="h"
+                        value={loading ? "..." : formatDuration(kpi.avg)}
+                        description={`Target: < ${TARGET_HOURS}h for standard documents`}
                         rightIcon={undefined}
-                        suffixText={
-                            <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-600">
-                                <TrendingDown className="mr-1 h-4 w-4" />
-                                8%
-                            </span>
-                        }
                     />
 
                     <KpiCard
@@ -293,36 +236,14 @@ export default function MyCompletePage() {
                         rightIcon={undefined}
                         customContent={
                             <div className="mt-2 flex items-center gap-8">
-                                <div>
-                                    <div className="text-5xl font-bold leading-none text-emerald-600">
-                                        26
-                                    </div>
-                                    <div className="mt-2 text-sm font-semibold uppercase tracking-[0.08em] text-slate-400">
-                                        Approved
-                                    </div>
-                                </div>
-
+                                <OutcomeStat value={kpi.approved} label="Approved" className="text-emerald-600" />
                                 <div className="h-14 w-px bg-slate-200" />
-
-                                <div>
-                                    <div className="text-5xl font-bold leading-none text-rose-500">
-                                        6
-                                    </div>
-                                    <div className="mt-2 text-sm font-semibold uppercase tracking-[0.08em] text-slate-400">
-                                        Rejected
-                                    </div>
-                                </div>
+                                <OutcomeStat value={kpi.rejected} label="Rejected" className="text-rose-500" />
                             </div>
                         }
                     />
                 </div>
 
-                {/* <CompleteFilterBar
-                    search={search}
-                    onSearchChange={setSearch}
-                    typeValue="All Business"
-                    outcomeValue="All Outcomes"
-                /> */}
                 <DataFilterBar
                     fields={filterFields}
                     actionSlot={
@@ -330,8 +251,10 @@ export default function MyCompletePage() {
                             variant="ghost"
                             size="icon"
                             className="h-12 w-12 rounded-xl text-slate-500 hover:bg-white"
+                            onClick={() => void reload()}
+                            disabled={loading}
                         >
-                            <Filter className="h-5 w-5" />
+                            <RefreshCw className={cn("h-5 w-5", loading && "animate-spin")} />
                         </Button>
                     }
                 />
@@ -339,12 +262,12 @@ export default function MyCompletePage() {
                 <DataTable
                     data={pagedData}
                     columns={columns}
-                    rowKey={(row: CompleteItem) => row.id}
+                    rowKey={(row) => row.id}
                     selectable={false}
-                    emptyText="No completed approvals found"
+                    emptyText={loading ? "Loading completed approvals..." : "No completed approvals found"}
                     footerLeft={`Showing ${pagedData.length} of ${filteredData.length} completed items`}
                     pagination={{
-                        currentPage,
+                        currentPage: safePage,
                         totalPages,
                         totalItems: filteredData.length,
                         pageSize,

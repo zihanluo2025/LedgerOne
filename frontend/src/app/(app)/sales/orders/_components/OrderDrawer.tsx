@@ -168,16 +168,19 @@ export default function OrderDrawer({
     }, [open, mode, initialData, reset]);
 
     async function submit(values: OrderFormOutput) {
-        await onSubmit({
-            customerName: values.customerName.trim(),
-            orderDate: values.orderDate.trim(),
-            status: values.status,
-            currency: values.currency.trim().toUpperCase(),
-            totalAmount: values.totalAmount.trim(),
-            notes: values.notes.trim(),
-        });
-
-        onClose();
+        try {
+            await onSubmit({
+                customerName: values.customerName.trim(),
+                orderDate: values.orderDate.trim(),
+                status: values.status,
+                currency: values.currency.trim().toUpperCase(),
+                totalAmount: values.totalAmount.trim(),
+                notes: values.notes.trim(),
+            });
+            onClose();
+        } catch {
+            // Keep the drawer open so the user can fix the input; the page reports the error.
+        }
     }
 
     return (
@@ -256,6 +259,7 @@ export default function OrderDrawer({
                                             <Select
                                                 value={field.value}
                                                 onValueChange={field.onChange}
+                                                disabled={mode === "create"}
                                             >
                                                 <FormControl>
                                                     <SelectTrigger className="h-11 w-full rounded-xl">
@@ -270,6 +274,11 @@ export default function OrderDrawer({
                                                     ))}
                                                 </SelectContent>
                                             </Select>
+                                            {mode === "create" ? (
+                                                <p className="text-xs text-slate-500">
+                                                    New orders start as Draft and are confirmed once approved.
+                                                </p>
+                                            ) : null}
                                             <FormMessage />
                                         </FormItem>
                                     )}

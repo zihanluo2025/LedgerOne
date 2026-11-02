@@ -1,3 +1,5 @@
+import type { ApprovalStatus } from "@/types/approval";
+
 export type OrderStatus =
   | "Draft"
   | "Confirmed"
@@ -15,7 +17,9 @@ export type OrderRecord = {
   currency: string;
   totalAmount: number;
   notes?: string | null;
+  approvalStatus?: ApprovalStatus | null;
   createdAt: string;
+  updatedAt: string;
 };
 
 export type CreateOrderRequest = {

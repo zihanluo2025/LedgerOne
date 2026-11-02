@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using MiniErp.Application.Abstractions;
 using MiniErp.Application.Orders;
 using MiniErp.Application.Orders.Models;
 
@@ -6,7 +7,7 @@ namespace MiniErp.Api.Controllers;
 
 [ApiController]
 [Route("api/orders")]
-public class OrdersController : ControllerBase
+public sealed class OrdersController : ControllerBase
 {
     private readonly OrderService _service;
 
@@ -16,58 +17,41 @@ public class OrdersController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult> GetList(
+    public async Task<ActionResult<PagedResult<OrderDto>>> GetList(
         [FromQuery] string? keyword,
-        [FromQuery] int limit = 50,
+        [FromQuery] OrderStatus? status,
+        [FromQuery] int limit = Paging.DefaultLimit,
         [FromQuery] string? cursor = null,
         CancellationToken cancellationToken = default)
-    {
-        var result = await _service.GetListAsync(
-            new OrderListQuery(keyword, limit, cursor),
-            cancellationToken);
-
-        return Ok(result);
-    }
+        => Ok(await _service.GetListAsync(new OrderListQuery(keyword, status, limit, cursor), cancellationToken));
 
     [HttpGet("{id}")]
-    public async Task<ActionResult> GetById(string id)
+    public async Task<ActionResult<OrderDto>> GetById(string id, CancellationToken cancellationToken)
     {
-        var item = await _service.GetByIdAsync(id);
+        var item = await _service.GetByIdAsync(id, cancellationToken);
         return item is null ? NotFound() : Ok(item);
     }
 
     [HttpPost]
-    public async Task<ActionResult> Create([FromBody] CreateOrderRequest body)
+    public async Task<ActionResult<OrderDto>> Create(
+        [FromBody] CreateOrderRequest body,
+        CancellationToken cancellationToken)
     {
-        try
-        {
-            var created = await _service.CreateAsync(body);
-            return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var created = await _service.CreateAsync(body, cancellationToken);
+        return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
 
     [HttpPut("{id}")]
-    public async Task<ActionResult> Update(string id, [FromBody] UpdateOrderRequest body)
+    public async Task<ActionResult<OrderDto>> Update(
+        string id,
+        [FromBody] UpdateOrderRequest body,
+        CancellationToken cancellationToken)
     {
-        try
-        {
-            var updated = await _service.UpdateAsync(id, body);
-            return updated is null ? NotFound() : Ok(updated);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var updated = await _service.UpdateAsync(id, body, cancellationToken);
+        return updated is null ? NotFound() : Ok(updated);
     }
 
     [HttpDelete("{id}")]
-    public async Task<ActionResult> Delete(string id)
-    {
-        var success = await _service.DeleteAsync(id);
-        return success ? NoContent() : NotFound();
-    }
+    public async Task<IActionResult> Delete(string id, CancellationToken cancellationToken)
+        => await _service.DeleteAsync(id, cancellationToken) ? NoContent() : NotFound();
 }

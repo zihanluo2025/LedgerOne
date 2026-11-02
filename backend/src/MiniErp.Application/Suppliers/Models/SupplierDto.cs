@@ -4,7 +4,7 @@ public sealed record SupplierDto(
     string Id,
     string SupplierCode,
     string SupplierName,
-    string category,
+    string PrimaryCategory,
     string ContactPerson,
     string? ContactEmail,
     string? ContactPhone,
@@ -16,5 +16,7 @@ public sealed record SupplierDto(
     DateTime? LastOrderDate,
     string? Notes,
     DateTime CreatedAt,
-    DateTime UpdatedAt
+    string CreatedBy,
+    DateTime UpdatedAt,
+    string UpdatedBy
 );

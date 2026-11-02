@@ -1,14 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import {
-    AlertTriangle,
-    CheckCircle2,
-    Download,
-    Filter,
-    ListChecks,
-    TimerReset,
-} from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { AlertTriangle, ArrowRight, CheckCircle2, Download, ListChecks, RefreshCw, TimerReset } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import DataFilterBar from "@/components/common/data-filter-bar";
@@ -18,228 +11,119 @@ import DataTable from "@/components/common/data-table";
 import PageHeader from "@/components/common/PageHeader";
 import type { DataTableColumn } from "@/components/common/data-table/types";
 
-type AuditItem = {
-    id: string;
-    docNo?: string | null;
-    type?: "Inbound" | "Sales" | string | null;
-    requester?: string | null;
-    summary?: string | null;
-    currentApprover?: string | null;
-    department?: string | null;
-    submittedAt?: string | null;
-    status?: "In Progress" | "Approved" | "Rejected" | "Cancelled" | "Overdue" | string | null;
+import { listApprovalLogs } from "@/lib/apis/approvals";
+import { getErrorMessage } from "@/lib/api";
+import { exportToCsv } from "@/lib/export";
+import type { ApprovalAction, ApprovalLog } from "@/types/approval";
+
+import { useApprovals } from "../_components/use-approvals";
+import {
+    ApprovalStatusBadge,
+    businessTypeOptions,
+    cn,
+    formatDateTime,
+    isOverdue,
+    isThisMonth,
+    PersonCell,
+    TypeBadge,
+} from "../_components/shared";
+
+const actionClassMap: Record<ApprovalAction, string> = {
+    Submit: "border-blue-200 bg-blue-50 text-blue-700",
+    Approve: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    Reject: "border-rose-200 bg-rose-50 text-rose-700",
+    Withdraw: "border-slate-200 bg-slate-100 text-slate-600",
 };
 
-const auditData: AuditItem[] = [
-    {
-        id: "1",
-        docNo: "INB-20260405-001",
-        type: "Inbound",
-        requester: "David Chen",
-        summary: "Quarterly Server Hardware Replenishment",
-        currentApprover: "Marcus Aurelius",
-        department: "Engineering",
-        submittedAt: "Apr 05, 10:24 AM",
-        status: "In Progress",
-    },
-    {
-        id: "2",
-        docNo: "SAL-20260404-042",
-        type: "Sales",
-        requester: "Sarah Jenkins",
-        summary: "Global SaaS License Renewal",
-        currentApprover: "Completed",
-        department: "Finance",
-        submittedAt: "Apr 04, 02:15 PM",
-        status: "Approved",
-    },
-    {
-        id: "3",
-        docNo: "INB-20260401-089",
-        type: "Inbound",
-        requester: "Robert Miller",
-        summary: "Office Renovation Supply Request",
-        currentApprover: "Linda V.",
-        department: "Operations",
-        submittedAt: "Apr 01, 09:00 AM",
-        status: "Overdue",
-    },
-    {
-        id: "4",
-        docNo: "SAL-20260330-015",
-        type: "Sales",
-        requester: "Kevin Zhang",
-        summary: "Client Hospitality Procurement",
-        currentApprover: "—",
-        department: "Marketing",
-        submittedAt: "Mar 30, 04:45 PM",
-        status: "Cancelled",
-    },
-    {
-        id: "5",
-        docNo: "SAL-20260403-018",
-        type: "Sales",
-        requester: "Amanda White",
-        summary: "Regional Pricing Exception Approval",
-        currentApprover: "Completed",
-        department: "Sales",
-        submittedAt: "Apr 03, 11:35 AM",
-        status: "Rejected",
-    },
-    {
-        id: "6",
-        docNo: "INB-20260402-021",
-        type: "Inbound",
-        requester: "Jason Clark",
-        summary: "Warehouse Safety Equipment Restock",
-        currentApprover: "Helen Brooks",
-        department: "Operations",
-        submittedAt: "Apr 02, 08:10 AM",
-        status: "In Progress",
-    },
-    {
-        id: "7",
-        docNo: "INB-20260402-034",
-        type: "Inbound",
-        requester: "Olivia Brown",
-        summary: "Production Line Spare Parts Purchase",
-        currentApprover: "Completed",
-        department: "Engineering",
-        submittedAt: "Apr 02, 01:20 PM",
-        status: "Approved",
-    },
-    {
-        id: "8",
-        docNo: "SAL-20260401-051",
-        type: "Sales",
-        requester: "Ethan Scott",
-        summary: "Enterprise Client Bulk Discount Request",
-        currentApprover: "Grace Lee",
-        department: "Finance",
-        submittedAt: "Apr 01, 03:05 PM",
-        status: "Overdue",
-    },
-];
-
-function cn(...classes: Array<string | false | undefined>) {
-    return classes.filter(Boolean).join(" ");
-}
-
-function safeText(value?: string | null) {
-    return value ?? "";
-}
-
-function normalizeValue(value?: string | null) {
-    return safeText(value).toLowerCase().trim().replace(/\s+/g, "-");
-}
-
-function getInitials(name?: string | null) {
-    const safeName = safeText(name);
-
-    if (!safeName || safeName === "—" || safeName === "Completed") {
-        return safeName;
-    }
-
-    return safeName
-        .split(" ")
-        .map((part) => part[0])
-        .join("")
-        .slice(0, 2)
-        .toUpperCase();
-}
-
-function TypeBadge({ type }: { type?: AuditItem["type"] }) {
-    const safeType = safeText(type);
-    const isInbound = safeType === "Inbound";
-
+function ActionBadge({ action }: { action: ApprovalAction }) {
     return (
         <span
             className={cn(
-                "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
-                isInbound
-                    ? "bg-[#DCEBFF] text-[#2D6BCF]"
-                    : "bg-[#E8DFFC] text-[#6C5AAE]"
+                "inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-[0.04em]",
+                actionClassMap[action]
             )}
         >
-            {safeType.toUpperCase()}
+            {action}
         </span>
     );
 }
 
-function StatusBadge({ status }: { status?: AuditItem["status"] }) {
-    const safeStatus = safeText(status);
+export default function ApprovalAuditPage() {
+    const requests = useApprovals("All");
 
-    const statusClassMap: Record<string, string> = {
-        "In Progress": "border-blue-200 bg-blue-50 text-blue-700",
-        Approved: "border-emerald-200 bg-emerald-50 text-emerald-700",
-        Rejected: "border-rose-200 bg-rose-50 text-rose-700",
-        Cancelled: "border-slate-200 bg-slate-100 text-slate-500",
-        Overdue: "border-orange-200 bg-orange-50 text-orange-600",
-    };
+    const [logs, setLogs] = useState<ApprovalLog[]>([]);
+    const [logsLoading, setLogsLoading] = useState(true);
+    const [logsError, setLogsError] = useState<string | null>(null);
 
-    const dotClassMap: Record<string, string> = {
-        "In Progress": "bg-blue-500",
-        Approved: "bg-emerald-500",
-        Rejected: "bg-rose-500",
-        Cancelled: "bg-slate-400",
-        Overdue: "bg-orange-500",
-    };
-
-    return (
-        <span
-            className={cn(
-                "inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-bold uppercase tracking-[0.04em]",
-                statusClassMap[safeStatus] ?? "border-slate-200 bg-slate-100 text-slate-500"
-            )}
-        >
-            <span className={cn("h-2 w-2 rounded-full", dotClassMap[safeStatus] ?? "bg-slate-400")} />
-            {safeStatus || "Unknown"}
-        </span>
-    );
-}
-
-export default function ApprovalAuditCenterPage() {
     const [search, setSearch] = useState("");
-    const [currentPage, setCurrentPage] = useState(1);
     const [type, setType] = useState("all");
-    const [status, setStatus] = useState("all");
-    const [department, setDepartment] = useState("all");
+    const [action, setAction] = useState("all");
+    const [currentPage, setCurrentPage] = useState(1);
 
-    const pageSize = 4;
+    const pageSize = 10;
+
+    const loadLogs = useCallback(async () => {
+        setLogsLoading(true);
+        setLogsError(null);
+        try {
+            const res = await listApprovalLogs();
+            setLogs(res.items ?? []);
+        } catch (e) {
+            setLogsError(getErrorMessage(e, "Failed to load audit logs."));
+            setLogs([]);
+        } finally {
+            setLogsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        void loadLogs();
+    }, [loadLogs]);
+
+    const refresh = () => {
+        void loadLogs();
+        void requests.reload();
+    };
+
+    const kpi = useMemo(() => {
+        const items = requests.items;
+        const monthItems = items.filter((item) => isThisMonth(item.submittedAt));
+        const decided = items.filter((item) => item.status === "Approved" || item.status === "Rejected").length;
+        const closed = items.filter((item) => item.status !== "Pending").length;
+
+        return {
+            thisMonth: monthItems.length,
+            pending: items.filter((item) => item.status === "Pending").length,
+            completionRate: closed > 0 ? Math.round((decided / closed) * 100) : 0,
+            overdue: items.filter(isOverdue).length,
+        };
+    }, [requests.items]);
 
     const filteredData = useMemo(() => {
         const keyword = search.trim().toLowerCase();
 
-        return auditData.filter((item) => {
+        return logs.filter((log) => {
             const matchKeyword =
                 !keyword ||
-                safeText(item.docNo).toLowerCase().includes(keyword) ||
-                safeText(item.summary).toLowerCase().includes(keyword) ||
-                safeText(item.requester).toLowerCase().includes(keyword) ||
-                safeText(item.currentApprover).toLowerCase().includes(keyword);
+                log.documentNo.toLowerCase().includes(keyword) ||
+                log.requesterName.toLowerCase().includes(keyword) ||
+                log.operatorName.toLowerCase().includes(keyword) ||
+                (log.comment ?? "").toLowerCase().includes(keyword);
 
-            const matchType =
-                type === "all" || safeText(item.type).toLowerCase() === type;
+            const matchType = type === "all" || log.businessType === type;
+            const matchAction = action === "all" || log.action === action;
 
-            const normalizedStatus = normalizeValue(item.status);
-            const matchStatus =
-                status === "all" || normalizedStatus === status;
-
-            const normalizedDepartment = safeText(item.department).toLowerCase();
-            const matchDepartment =
-                department === "all" || normalizedDepartment === department;
-
-            return matchKeyword && matchType && matchStatus && matchDepartment;
+            return matchKeyword && matchType && matchAction;
         });
-    }, [search, type, status, department]);
+    }, [logs, search, type, action]);
 
     const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
+    const safePage = Math.min(currentPage, totalPages);
 
     const pagedData = useMemo(() => {
-        const safeCurrentPage = Math.min(currentPage, totalPages);
-        const start = (safeCurrentPage - 1) * pageSize;
+        const start = (safePage - 1) * pageSize;
         return filteredData.slice(start, start + pageSize);
-    }, [filteredData, currentPage, totalPages]);
+    }, [filteredData, safePage]);
 
     const filterFields: FilterField[] = [
         {
@@ -250,148 +134,93 @@ export default function ApprovalAuditCenterPage() {
                 setSearch(value);
                 setCurrentPage(1);
             },
-            placeholder: "Search Doc No / Summary / Requester...",
+            placeholder: "Search Doc No, Operator, Requester, Comment...",
         },
         {
             key: "type",
             type: "select",
-            label: "Type",
+            label: "",
             value: type,
             onChange: (value) => {
                 setType(value);
                 setCurrentPage(1);
             },
-            options: [
-                { label: "All Business", value: "all" },
-                { label: "Inbound", value: "inbound" },
-                { label: "Sales", value: "sales" },
-            ],
+            options: businessTypeOptions,
         },
         {
-            key: "status",
+            key: "action",
             type: "select",
-            label: "Status",
-            value: status,
+            label: "",
+            value: action,
             onChange: (value) => {
-                setStatus(value);
+                setAction(value);
                 setCurrentPage(1);
             },
             options: [
-                { label: "All", value: "all" },
-                { label: "In Progress", value: "in-progress" },
-                { label: "Approved", value: "approved" },
-                { label: "Rejected", value: "rejected" },
-                { label: "Cancelled", value: "cancelled" },
-                { label: "Overdue", value: "overdue" },
-            ],
-        },
-        {
-            key: "department",
-            type: "select",
-            label: "Department",
-            value: department,
-            onChange: (value) => {
-                setDepartment(value);
-                setCurrentPage(1);
-            },
-            options: [
-                { label: "All", value: "all" },
-                { label: "Engineering", value: "engineering" },
-                { label: "Finance", value: "finance" },
-                { label: "Operations", value: "operations" },
-                { label: "Marketing", value: "marketing" },
-                { label: "Sales", value: "sales" },
+                { label: "All Actions", value: "all" },
+                { label: "Submit", value: "Submit" },
+                { label: "Approve", value: "Approve" },
+                { label: "Reject", value: "Reject" },
+                { label: "Withdraw", value: "Withdraw" },
             ],
         },
     ];
 
-    const columns: DataTableColumn<AuditItem>[] = [
+    const columns: DataTableColumn<ApprovalLog>[] = [
+        {
+            key: "createdAt",
+            title: "Time",
+            className: "text-[14px] font-medium text-slate-500",
+            render: (log) => formatDateTime(log.createdAt),
+        },
         {
             key: "docNo",
             title: "Document No",
-            render: (item: AuditItem) => (
-                <button
-                    type="button"
-                    className="max-w-[180px] text-left font-bold leading-8 text-[#1557E5] hover:underline"
-                >
-                    {safeText(item.docNo)}
-                </button>
-            ),
+            render: (log) => <span className="font-bold text-[#1557E5]">{log.documentNo}</span>,
         },
         {
             key: "type",
             title: "Type",
-            render: (item: AuditItem) => <TypeBadge type={item.type} />,
+            render: (log) => <TypeBadge type={log.businessType} />,
         },
         {
-            key: "requester",
-            title: "Requester",
-            render: (item: AuditItem) => (
-                <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#DFE5FF] text-sm font-bold text-[#4763B4]">
-                        {getInitials(item.requester)}
-                    </div>
-                    <span className="max-w-[100px] text-[15px] font-semibold leading-6 text-slate-700">
-                        {safeText(item.requester)}
-                    </span>
+            key: "action",
+            title: "Action",
+            render: (log) => <ActionBadge action={log.action} />,
+        },
+        {
+            key: "transition",
+            title: "Transition",
+            render: (log) => (
+                <div className="flex items-center gap-2">
+                    {log.fromStatus ? (
+                        <>
+                            <ApprovalStatusBadge status={log.fromStatus} />
+                            <ArrowRight className="h-4 w-4 text-slate-400" />
+                        </>
+                    ) : null}
+                    <ApprovalStatusBadge status={log.toStatus} />
                 </div>
             ),
         },
         {
-            key: "currentApprover",
-            title: "Current Approver",
-            render: (item: AuditItem) => {
-                const approver = safeText(item.currentApprover);
-
-                if (approver === "Completed" || approver === "—") {
-                    return (
-                        <span
-                            className={cn(
-                                "text-[14px] font-semibold",
-                                approver === "Completed"
-                                    ? "text-emerald-600"
-                                    : "text-slate-400"
-                            )}
-                        >
-                            {approver}
-                        </span>
-                    );
-                }
-
-                return (
-                    <span
-                        className={cn(
-                            "text-[14px] font-semibold",
-                            item.status === "Overdue" ? "text-rose-600" : "text-[#183B6B]"
-                        )}
-                    >
-                        {approver}
-                    </span>
-                );
-            },
+            key: "operator",
+            title: "Operator",
+            render: (log) => <PersonCell name={log.operatorName} sub={`Requester: ${log.requesterName}`} />,
         },
         {
-            key: "department",
-            title: "Dept.",
-            className: "text-[14px] font-medium text-slate-500",
-            render: (item: AuditItem) => safeText(item.department),
-        },
-        {
-            key: "submittedAt",
-            title: "Submitted",
-            className: "text-[14px] font-medium text-slate-400",
-            render: (item: AuditItem) => (
-                <span className="whitespace-pre-line">
-                    {safeText(item.submittedAt)}
+            key: "comment",
+            title: "Comment",
+            render: (log) => (
+                <span className="block max-w-[240px] truncate text-sm text-slate-600" title={log.comment ?? ""}>
+                    {log.comment || "-"}
                 </span>
             ),
         },
-        {
-            key: "status",
-            title: "Status",
-            render: (item: AuditItem) => <StatusBadge status={item.status} />,
-        },
     ];
+
+    const error = logsError ?? requests.error;
+    const loading = logsLoading || requests.loading;
 
     return (
         <div className="min-h-screen bg-[#F6F8FC]">
@@ -403,57 +232,73 @@ export default function ApprovalAuditCenterPage() {
                         {
                             label: "Export All",
                             icon: <Download size={22} strokeWidth={2.2} />,
-                            onClick: () => console.log("Export All clicked"),
+                            disabled: filteredData.length === 0,
+                            onClick: () =>
+                                exportToCsv("approval-audit", filteredData, [
+                                    { header: "Log Id", value: (r) => r.id },
+                                    { header: "Time", value: (r) => r.createdAt },
+                                    { header: "Document No", value: (r) => r.documentNo },
+                                    { header: "Type", value: (r) => r.businessType },
+                                    { header: "Action", value: (r) => r.action },
+                                    { header: "From", value: (r) => r.fromStatus },
+                                    { header: "To", value: (r) => r.toStatus },
+                                    { header: "Operator", value: (r) => r.operatorName },
+                                    { header: "Requester", value: (r) => r.requesterName },
+                                    { header: "Comment", value: (r) => r.comment },
+                                ]),
                         },
                     ]}
                 />
 
+                {error ? (
+                    <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                        {error}
+                    </div>
+                ) : null}
+
                 <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
                     <KpiCard
                         title="Total Requests"
-                        value="248"
+                        value={requests.loading ? "..." : String(kpi.thisMonth)}
                         rightIcon={
                             <div className="rounded-lg bg-[#EEF4FF] p-2 text-[#5B7BEA]">
                                 <ListChecks className="h-4 w-4" />
                             </div>
                         }
-                        description="all requests this month"
+                        description="submitted this month"
                     />
 
                     <KpiCard
-                        title="In Progress"
-                        value="36"
+                        title="In Review"
+                        value={requests.loading ? "..." : String(kpi.pending)}
                         rightIcon={
                             <div className="rounded-lg bg-[#EEF1FF] p-2 text-[#7A88A8]">
                                 <TimerReset className="h-4 w-4" />
                             </div>
                         }
-                        description="currently under review"
+                        description="currently awaiting a decision"
                     />
 
                     <KpiCard
-                        title="Completed Rate"
-                        value="82%"
+                        title="Decision Rate"
+                        value={requests.loading ? "..." : `${kpi.completionRate}%`}
                         rightIcon={
                             <div className="rounded-lg bg-[#EAFBF5] p-2 text-[#30A46C]">
                                 <CheckCircle2 className="h-4 w-4" />
                             </div>
                         }
-                        description="completed successfully"
+                        description="closed requests approved or rejected"
                     />
 
                     <KpiCard
                         title="Overdue Items"
-                        value="9"
+                        value={requests.loading ? "..." : String(kpi.overdue)}
                         rightIcon={
                             <div className="rounded-lg bg-[#FFF1EF] p-2 text-[#E85D4E]">
                                 <AlertTriangle className="h-4 w-4" />
                             </div>
                         }
-                        description="require attention"
-                        className="border border-rose-100 bg-rose-50/40"
-                        valueClassName="text-[#B5473E]"
-                        descriptionClassName="font-semibold uppercase tracking-[0.06em] text-[#D46357]"
+                        description="pending longer than 48 hours"
                     />
                 </div>
 
@@ -463,9 +308,11 @@ export default function ApprovalAuditCenterPage() {
                         <Button
                             variant="outline"
                             className="h-12 rounded-sm border-slate-200 bg-white px-4 text-[#183B6B] hover:bg-slate-50"
+                            onClick={refresh}
+                            disabled={loading}
                         >
-                            <Filter className="mr-2 h-4 w-4" />
-                            Advanced Filter
+                            <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />
+                            Refresh
                         </Button>
                     }
                 />
@@ -473,12 +320,12 @@ export default function ApprovalAuditCenterPage() {
                 <DataTable
                     data={pagedData}
                     columns={columns}
-                    rowKey={(row: AuditItem) => row.id}
+                    rowKey={(row) => row.id}
                     selectable={false}
-                    emptyText="No audit records found"
+                    emptyText={logsLoading ? "Loading audit logs..." : "No audit records found"}
                     footerLeft={`Showing ${pagedData.length} of ${filteredData.length} entries`}
                     pagination={{
-                        currentPage,
+                        currentPage: safePage,
                         totalPages,
                         totalItems: filteredData.length,
                         pageSize,

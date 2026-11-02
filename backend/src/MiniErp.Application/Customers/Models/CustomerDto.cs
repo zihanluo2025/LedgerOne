@@ -14,5 +14,7 @@ public sealed record CustomerDto(
     string Status,
     string? Notes,
     DateTime CreatedAt,
-    DateTime UpdatedAt
+    string CreatedBy,
+    DateTime UpdatedAt,
+    string UpdatedBy
 );

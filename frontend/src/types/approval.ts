@@ -1,73 +1,49 @@
-export type ApprovalBusinessType = "INBOUND" | "OUTBOUND";
-export type ApprovalStatus =
-  | "DRAFT"
-  | "PENDING"
-  | "APPROVED"
-  | "REJECTED"
-  | "WITHDRAWN"
-  | "OVERDUE";
+export type ApprovalBusinessType = "Inbound" | "Sales";
+export type ApprovalStatus = "Pending" | "Approved" | "Rejected" | "Withdrawn";
+export type ApprovalAction = "Submit" | "Approve" | "Reject" | "Withdraw";
+export type ApprovalScope = "All" | "Pending" | "Completed" | "Mine";
 
-export type ApprovalAction =
-  | "SUBMIT"
-  | "APPROVE"
-  | "REJECT"
-  | "WITHDRAW"
-  | "RESUBMIT";
+// Must match DashboardService.ApprovalOverdueAfter on the backend.
+export const APPROVAL_OVERDUE_HOURS = 48;
 
-export interface ApprovalSummary {
-  supplier: string;
-  quantity: number;
-  location: string;
-}
-
-export interface PendingApprovalItem {
+export type ApprovalRequest = {
   id: string;
+  documentId: string;
   documentNo: string;
   businessType: ApprovalBusinessType;
+  summary: string;
+  partner: string;
+  quantity?: number | null;
+  amount?: number | null;
+  currency?: string | null;
+  location?: string | null;
+  requesterId: string;
   requesterName: string;
-  requesterDept: string;
-  requesterAvatar?: string;
+  status: ApprovalStatus;
   submittedAt: string;
-  status: "PENDING" | "OVERDUE";
-  isToday: boolean;
-  isOverdue: boolean;
-  summary: ApprovalSummary;
-}
-
-export interface CompletedApprovalItem {
-  id: string;
-  documentNo: string;
-  businessType: ApprovalBusinessType;
-  requesterName: string;
-  requesterDept: string;
-  action: "APPROVE" | "REJECT";
-  comment: string;
-  processedAt: string;
-  currentStatus: "APPROVED" | "REJECTED";
-}
-
-export interface ApprovalRequestItem {
-  id: string;
-  documentNo: string;
-  businessType: ApprovalBusinessType;
-  summary: ApprovalSummary;
-  createdAt: string;
-  submittedAt?: string;
-  currentApprover?: string;
-  currentStatus: ApprovalStatus;
   updatedAt: string;
-}
+  processedAt?: string | null;
+  processedById?: string | null;
+  processedByName?: string | null;
+  comment?: string | null;
+};
 
-export interface ApprovalAuditItem {
+export type ApprovalLog = {
   id: string;
-  logId: string;
+  approvalId: string;
   documentNo: string;
   businessType: ApprovalBusinessType;
   requesterName: string;
+  operatorId: string;
   operatorName: string;
   action: ApprovalAction;
-  fromStatus: ApprovalStatus;
+  fromStatus?: ApprovalStatus | null;
   toStatus: ApprovalStatus;
-  comment: string;
+  comment?: string | null;
   createdAt: string;
-}
+};
+
+export type BatchApprovalResult = {
+  approved: number;
+  skipped: string[];
+};

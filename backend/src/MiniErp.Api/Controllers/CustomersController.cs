@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using MiniErp.Application.Abstractions;
 using MiniErp.Application.Customers;
 using MiniErp.Application.Customers.Models;
 
@@ -6,95 +7,67 @@ namespace MiniErp.Api.Controllers;
 
 [ApiController]
 [Route("api/customers")]
-public class CustomersController : ControllerBase
+public sealed class CustomersController : ControllerBase
 {
-    private readonly CustomerService _customerService;
+    private readonly CustomerService _service;
 
-    public CustomersController(CustomerService customerService)
+    public CustomersController(CustomerService service)
     {
-        _customerService = customerService;
+        _service = service;
     }
 
-    // GET /api/customers
     [HttpGet]
-    public async Task<ActionResult> GetList(
+    public async Task<ActionResult<PagedResult<CustomerDto>>> GetList(
         [FromQuery] string? keyword,
-        [FromQuery] int limit = 50,
+        [FromQuery] string? status,
+        [FromQuery] string? segment,
+        [FromQuery] int limit = Paging.DefaultLimit,
         [FromQuery] string? cursor = null,
         CancellationToken cancellationToken = default)
-    {
-        var result = await _customerService.GetCustomersAsync(
-            new CustomerListQuery(keyword, limit, cursor),
-            cancellationToken);
+        => Ok(await _service.GetCustomersAsync(
+            new CustomerListQuery(keyword, status, segment, limit, cursor),
+            cancellationToken));
 
-        return Ok(result);
-    }
-
-    // GET /api/customers/summary
     [HttpGet("summary")]
-    public async Task<ActionResult> GetSummary(CancellationToken cancellationToken)
-    {
-        var result = await _customerService.GetSummaryAsync(cancellationToken);
-        return Ok(result);
-    }
+    public async Task<ActionResult<CustomerSummaryDto>> GetSummary(CancellationToken cancellationToken)
+        => Ok(await _service.GetSummaryAsync(cancellationToken));
 
-    // GET /api/customers/{id}
     [HttpGet("{id}")]
-    public async Task<ActionResult> GetById(string id, CancellationToken cancellationToken)
+    public async Task<ActionResult<CustomerDto>> GetById(string id, CancellationToken cancellationToken)
     {
-        var result = await _customerService.GetByIdAsync(id, cancellationToken);
-
-        if (result is null)
-            return NotFound();
-
-        return Ok(result);
+        var result = await _service.GetByIdAsync(id, cancellationToken);
+        return result is null ? NotFound() : Ok(result);
     }
 
-    // POST /api/customers
     [HttpPost]
-    public async Task<ActionResult> Create(
+    public async Task<ActionResult<CustomerDto>> Create(
         [FromBody] CreateCustomerRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await _customerService.CreateAsync(request, cancellationToken);
-
+        var result = await _service.CreateAsync(request, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
     }
 
-    // PUT /api/customers/{id}
     [HttpPut("{id}")]
-    public async Task<ActionResult> Update(
+    public async Task<ActionResult<CustomerDto>> Update(
         string id,
         [FromBody] UpdateCustomerRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await _customerService.UpdateAsync(id, request, cancellationToken);
-
-        if (result is null)
-            return NotFound();
-
-        return Ok(result);
+        var result = await _service.UpdateAsync(id, request, cancellationToken);
+        return result is null ? NotFound() : Ok(result);
     }
 
-    // DELETE /api/customers/{id}
     [HttpDelete("{id}")]
-    public async Task<ActionResult> Delete(string id, CancellationToken cancellationToken)
-    {
-        var success = await _customerService.DeleteAsync(id, cancellationToken);
+    public async Task<IActionResult> Delete(string id, CancellationToken cancellationToken)
+        => await _service.DeleteAsync(id, cancellationToken) ? NoContent() : NotFound();
 
-        if (!success)
-            return NotFound();
-
-        return NoContent();
-    }
-
-    // POST /api/customers/bulk-delete
     [HttpPost("bulk-delete")]
-    public async Task<ActionResult> BulkDelete(
-        [FromBody] IEnumerable<string> ids,
+    public async Task<IActionResult> BulkDelete(
+        [FromBody] BulkDeleteRequest request,
         CancellationToken cancellationToken)
     {
-        await _customerService.BulkDeleteAsync(ids, cancellationToken);
+        await _service.BulkDeleteAsync(request.Ids, cancellationToken);
         return NoContent();
     }
 }

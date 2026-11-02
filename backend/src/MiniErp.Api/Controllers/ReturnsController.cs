@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using MiniErp.Application.Abstractions;
 using MiniErp.Application.Returns;
 using MiniErp.Application.Returns.Models;
 
@@ -6,7 +7,7 @@ namespace MiniErp.Api.Controllers;
 
 [ApiController]
 [Route("api/returns")]
-public class ReturnsController : ControllerBase
+public sealed class ReturnsController : ControllerBase
 {
     private readonly ReturnService _service;
 
@@ -16,58 +17,42 @@ public class ReturnsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult> GetList(
+    public async Task<ActionResult<PagedResult<ReturnDto>>> GetList(
         [FromQuery] string? keyword,
-        [FromQuery] int limit = 50,
+        [FromQuery] ReturnType? type,
+        [FromQuery] ReturnStatus? status,
+        [FromQuery] int limit = Paging.DefaultLimit,
         [FromQuery] string? cursor = null,
         CancellationToken cancellationToken = default)
-    {
-        var result = await _service.GetListAsync(
-            new ReturnListQuery(keyword, limit, cursor),
-            cancellationToken);
-
-        return Ok(result);
-    }
+        => Ok(await _service.GetListAsync(new ReturnListQuery(keyword, type, status, limit, cursor), cancellationToken));
 
     [HttpGet("{id}")]
-    public async Task<ActionResult> GetById(string id)
+    public async Task<ActionResult<ReturnDto>> GetById(string id, CancellationToken cancellationToken)
     {
-        var item = await _service.GetByIdAsync(id);
+        var item = await _service.GetByIdAsync(id, cancellationToken);
         return item is null ? NotFound() : Ok(item);
     }
 
     [HttpPost]
-    public async Task<ActionResult> Create([FromBody] CreateReturnRequest body)
+    public async Task<ActionResult<ReturnDto>> Create(
+        [FromBody] CreateReturnRequest body,
+        CancellationToken cancellationToken)
     {
-        try
-        {
-            var created = await _service.CreateAsync(body);
-            return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var created = await _service.CreateAsync(body, cancellationToken);
+        return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
 
     [HttpPut("{id}")]
-    public async Task<ActionResult> Update(string id, [FromBody] UpdateReturnRequest body)
+    public async Task<ActionResult<ReturnDto>> Update(
+        string id,
+        [FromBody] UpdateReturnRequest body,
+        CancellationToken cancellationToken)
     {
-        try
-        {
-            var updated = await _service.UpdateAsync(id, body);
-            return updated is null ? NotFound() : Ok(updated);
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var updated = await _service.UpdateAsync(id, body, cancellationToken);
+        return updated is null ? NotFound() : Ok(updated);
     }
 
     [HttpDelete("{id}")]
-    public async Task<ActionResult> Delete(string id)
-    {
-        var success = await _service.DeleteAsync(id);
-        return success ? NoContent() : NotFound();
-    }
+    public async Task<IActionResult> Delete(string id, CancellationToken cancellationToken)
+        => await _service.DeleteAsync(id, cancellationToken) ? NoContent() : NotFound();
 }

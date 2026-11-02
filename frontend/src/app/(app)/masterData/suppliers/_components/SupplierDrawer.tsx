@@ -190,23 +190,26 @@ export default function SupplierDrawer({
     }, [open, mode, initialData, reset]);
 
     async function submit(values: SupplierFormOutput) {
-        await onSubmit({
-            supplierCode: values.supplierCode.trim(),
-            supplierName: values.supplierName.trim(),
-            primaryCategory: values.primaryCategory.trim(),
-            contactPerson: values.contactPerson.trim(),
-            contactEmail: values.contactEmail.trim() || null,
-            contactPhone: values.contactPhone.trim() || null,
-            region: values.region.trim(),
-            address: values.address.trim() || null,
-            website: values.website.trim() || null,
-            status: values.status,
-            riskLevel: values.riskLevel,
-            lastOrderDate: values.lastOrderDate?.trim() ? values.lastOrderDate : null,
-            notes: values.notes.trim() || null,
-        });
-
-        onClose();
+        try {
+            await onSubmit({
+                supplierCode: values.supplierCode.trim(),
+                supplierName: values.supplierName.trim(),
+                primaryCategory: values.primaryCategory.trim(),
+                contactPerson: values.contactPerson.trim(),
+                contactEmail: values.contactEmail.trim() || null,
+                contactPhone: values.contactPhone.trim() || null,
+                region: values.region.trim(),
+                address: values.address.trim() || null,
+                website: values.website.trim() || null,
+                status: values.status,
+                riskLevel: values.riskLevel,
+                lastOrderDate: values.lastOrderDate?.trim() ? values.lastOrderDate : null,
+                notes: values.notes.trim() || null,
+            });
+            onClose();
+        } catch {
+            // Keep the drawer open so the user can fix the input; the page reports the error.
+        }
     }
 
     return (

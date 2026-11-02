@@ -6,5 +6,7 @@ public sealed record UpdateInboundRequest(
     int ExpectedQty,
     int Items,
     string ExpectedDate,
-    string? Notes
+    string? Notes,
+    int? ReceivedQty = null,
+    bool? HasException = null
 );

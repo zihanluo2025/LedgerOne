@@ -1,40 +1,33 @@
-import { apiFetch } from "@/lib/api";
+import { apiFetch, type Paged } from "@/lib/api";
 import type {
   CreateOrderRequest,
   OrderRecord,
+  OrderStatus,
   UpdateOrderRequest,
 } from "@/types/order";
 
-export function listOrders(params?: { keyword?: string; limit?: number }) {
-  return apiFetch<{ items: OrderRecord[]; nextCursor?: string | null }>(
-    "/api/orders",
-    undefined,
-    {
-      keyword: params?.keyword,
-      limit: params?.limit ?? 500,
-    }
-  );
+const BASE = "/api/orders";
+
+export function listOrders(params?: { keyword?: string; status?: OrderStatus; limit?: number; cursor?: string }) {
+  return apiFetch<Paged<OrderRecord>>(BASE, undefined, {
+    keyword: params?.keyword,
+    status: params?.status,
+    limit: params?.limit ?? 1000,
+    cursor: params?.cursor,
+  });
 }
 
 export function createOrder(payload: CreateOrderRequest) {
-  return apiFetch<OrderRecord>("/api/orders", {
-    method: "POST",
+  return apiFetch<OrderRecord>(BASE, { method: "POST", body: JSON.stringify(payload) });
+}
+
+export function updateOrder(id: string, payload: UpdateOrderRequest) {
+  return apiFetch<OrderRecord>(`${BASE}/${encodeURIComponent(id)}`, {
+    method: "PUT",
     body: JSON.stringify(payload),
   });
 }
 
-export function updateOrder(id: string, payload: UpdateOrderRequest) {
-  return apiFetch<OrderRecord>(
-    `/api/orders/${encodeURIComponent(id)}`,
-    {
-      method: "PUT",
-      body: JSON.stringify(payload),
-    }
-  );
-}
-
 export function deleteOrder(id: string) {
-  return apiFetch<void>(`/api/orders/${encodeURIComponent(id)}`, {
-    method: "DELETE",
-  });
+  return apiFetch<void>(`${BASE}/${encodeURIComponent(id)}`, { method: "DELETE" });
 }

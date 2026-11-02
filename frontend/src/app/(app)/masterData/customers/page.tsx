@@ -23,6 +23,8 @@ import { DataTableColumn } from "@/components/common/data-table/types";
 import CustomerDrawer from "./_components/CustomerDrawer";
 
 import { useConfirm } from "@/hooks/use-confirm";
+import { exportToCsv } from "@/lib/export";
+import { toastApiError, toastSuccess } from "@/lib/tools/toast";
 
 import {
     createCustomer,
@@ -190,7 +192,7 @@ export default function CustomersPage() {
             const data = await listCustomers();
             setCustomers(data.items ?? []);
         } catch (error) {
-            console.error("Failed to load customers:", error);
+            toastApiError(error, "Failed to load customers");
             setCustomers([]);
         } finally {
             setLoading(false);
@@ -226,19 +228,29 @@ export default function CustomersPage() {
 
         try {
             await deleteCustomer(customer.id);
+            toastSuccess(`"${customer.customerName}" has been deleted.`, "Customer Deleted");
             await loadCustomers();
         } catch (error) {
-            console.error("Failed to delete customer:", error);
+            toastApiError(error, "Delete Failed");
         }
     }
 
     async function handleSubmit(values: CustomerFormValues) {
-        if (drawerMode === "create") {
-            await createCustomer(values);
-        } else if (editingCustomer) {
-            await updateCustomer(editingCustomer.id, values);
+        try {
+            if (drawerMode === "create") {
+                await createCustomer(values);
+            } else if (editingCustomer) {
+                await updateCustomer(editingCustomer.id, values);
+            }
+        } catch (error) {
+            toastApiError(error, "Save Failed");
+            throw error;
         }
 
+        toastSuccess(
+            drawerMode === "create" ? "Customer created successfully." : "Customer updated successfully.",
+            "Customer Saved"
+        );
         setDrawerOpen(false);
         await loadCustomers();
     }
@@ -442,7 +454,17 @@ export default function CustomersPage() {
                         {
                             label: "Export",
                             icon: <Download size={22} strokeWidth={2.2} />,
-                            onClick: () => console.log("Export clicked"),
+                            onClick: () => exportToCsv("customers", filteredData, [
+                                { header: "Code", value: (r) => r.customerCode },
+                                { header: "Name", value: (r) => r.customerName },
+                                { header: "Company", value: (r) => r.companyName },
+                                { header: "Segment", value: (r) => r.segment },
+                                { header: "Contact", value: (r) => r.contactPerson },
+                                { header: "Email", value: (r) => r.contactEmail },
+                                { header: "Phone", value: (r) => r.contactPhone },
+                                { header: "Region", value: (r) => r.region },
+                                { header: "Status", value: (r) => r.status },
+                            ]),
                         },
                         {
                             label: "Add Customer",
