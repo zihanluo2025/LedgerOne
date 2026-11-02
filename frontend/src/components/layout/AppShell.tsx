@@ -117,9 +117,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
     return (
         <div className="h-screen overflow-hidden erp-shell">
-            <div className="grid h-full grid-cols-[240px_1fr]">
+            <div className="grid h-full grid-cols-[240px_1fr] grid-rows-[minmax(0,1fr)]">
                 {/* Sidebar */}
-                <aside className="flex h-full flex-col erp-sidebar">
+                <aside className="flex h-full min-h-0 flex-col overflow-hidden erp-sidebar">
                     <div className="erp-brand shrink-0 ">LOGER ONE</div>
 
                     <nav className="erp-nav min-h-0 flex-1 overflow-y-auto">
