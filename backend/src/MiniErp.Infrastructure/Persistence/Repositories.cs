@@ -7,6 +7,7 @@ using MiniErp.Application.Inbounds;
 using MiniErp.Application.Inbounds.Models;
 using MiniErp.Application.Orders;
 using MiniErp.Application.Orders.Models;
+using MiniErp.Application.Profiles;
 using MiniErp.Application.Returns;
 using MiniErp.Application.Returns.Models;
 using MiniErp.Application.Suppliers;
@@ -61,4 +62,11 @@ public sealed class ApprovalLogRepository(IDocumentStore store, ICurrentUser cur
 {
     protected override string EntityType => "AUDIT";
     protected override string GetId(ApprovalLogDto entity) => entity.Id;
+}
+
+public sealed class UserProfileRepository(IDocumentStore store, ICurrentUser currentUser)
+    : DocumentRepository<UserProfileDto>(store, currentUser), IUserProfileRepository
+{
+    protected override string EntityType => "PROFILE";
+    protected override string GetId(UserProfileDto entity) => entity.UserId;
 }

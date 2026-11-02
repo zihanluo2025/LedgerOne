@@ -10,6 +10,7 @@ using MiniErp.Application.Dashboard;
 using MiniErp.Application.Inbounds;
 using MiniErp.Application.Orders;
 using MiniErp.Application.Products;
+using MiniErp.Application.Profiles;
 using MiniErp.Application.Returns;
 using MiniErp.Application.Suppliers;
 using MiniErp.Application.Users;
@@ -82,6 +83,7 @@ builder.Services.AddScoped<IInboundRepository, InboundRepository>();
 builder.Services.AddScoped<IReturnRepository, ReturnRepository>();
 builder.Services.AddScoped<IApprovalRepository, ApprovalRepository>();
 builder.Services.AddScoped<IApprovalLogRepository, ApprovalLogRepository>();
+builder.Services.AddScoped<IUserProfileRepository, UserProfileRepository>();
 
 // Application services
 builder.Services.AddScoped<ProductService>();
@@ -92,6 +94,7 @@ builder.Services.AddScoped<ReturnService>();
 builder.Services.AddScoped<OrderService>();
 builder.Services.AddScoped<ApprovalService>();
 builder.Services.AddScoped<DashboardService>();
+builder.Services.AddScoped<UserProfileService>();
 builder.Services.AddScoped<IApprovalDocumentHandler, OrderApprovalHandler>();
 builder.Services.AddScoped<IApprovalDocumentHandler, InboundApprovalHandler>();
 
